@@ -251,30 +251,30 @@ constructor :: Either ((Map.Map Token Symbol), String) TupParser -- ^ Tupla que 
 
 constructor tup1 tup2 = case tup1 of
                           Right (m, a) -> case tup2 of 
-                                            Right (n, b) -> case Map.null (chequearAsignacion b) of
-                                                       True -> case unirMapas m n of
+                                            Right (n, b) -> case unirMapas m n of
+--case Map.null (chequearAsignacion b) of True -> 
                                                                  Right res -> Right (res, (construirAST a b))
                                                                  Left err2 -> Left (m,err2)
-                                                       False -> case actualizarMapa m (Map.toList (chequearAsignacion b)) of
-                                                                 Right res -> case unirMapas res n of
-                                                                               Right res2 -> Right (res2, construirAST a b)
-                                                                               Left err2 -> Left (m,err2)
-                                                                 Left (m2,err) -> case unirMapas m2 n of
-                                                                                   Right res2 -> Left (res2, err)
-                                                                                   Left err2 -> Left (m, err ++ "\n" ++ err2)
-                                            Left errs -> Left (m,errs)
+--                                                       False -> case actualizarMapa m (Map.toList (chequearAsignacion b)) of
+--                                                                 Right res -> case unirMapas res n of
+--                                                                               Right res2 -> Right (res2, construirAST a b)
+--                                                                               Left err2 -> Left (m,err2)
+--                                                                 Left (m2,err) -> case unirMapas m2 n of
+--                                                                                   Right res2 -> Left (res2, err)
+--                                                                                   Left err2 -> Left (m, err ++ "\n" ++ err2)
+--                                            Left errs -> Left (m,errs)
                           Left (m, errs) -> case tup2 of
-                                            Right (n, b) -> case Map.null (chequearAsignacion b) of
-                                                       True -> case unirMapas m n of
+                                            Right (n, b) -> case unirMapas m n of
+-- case Map.null (chequearAsignacion b) of True -> 
                                                                  Right res -> Left (res, errs)
                                                                  Left err2 -> Left (m, errs ++ "\n" ++ err2)
-                                                       False -> case actualizarMapa m (Map.toList (chequearAsignacion b)) of
-                                                                 Right res -> case unirMapas res n of
-                                                                               Right res2 -> Left (res2, errs)
-                                                                               Left err2 -> Left (m, errs ++ "\n" ++ err2)
-                                                                 Left (m2,err) -> case unirMapas m2 n of
-                                                                                   Right res2 -> Left (res2,errs ++ "\n" ++ err)
-                                                                                   Left err2 -> Left (m, errs ++ "\n" ++ err2 ++ "\n" ++ err)
+--                                                       False -> case actualizarMapa m (Map.toList (chequearAsignacion b)) of
+--                                                                 Right res -> case unirMapas res n of
+--                                                                               Right res2 -> Left (res2, errs)
+--                                                                               Left err2 -> Left (m, errs ++ "\n" ++ err2)
+--                                                                 Left (m2,err) -> case unirMapas m2 n of
+ --                                                                                  Right res2 -> Left (res2,errs ++ "\n" ++ err)
+  --                                                                                 Left err2 -> Left (m, errs ++ "\n" ++ err2 ++ "\n" ++ err)
                                             Left err -> Left (m, errs ++ "\n" ++ err)
                                          
 
@@ -625,6 +625,8 @@ takePos (TkLetra a) = a
 takePos (TkDigito a) = a
 takePos (TkSimbolo a) = a
 takePos (TkNegar a) = a
+takePos (TkId pos a) = pos
+takePos (TkStr pos a) = pos
 
 
 {-|
