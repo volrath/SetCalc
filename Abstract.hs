@@ -60,7 +60,14 @@ data Inst = Estado -- ^ La instrucción "estado"
           | OlvidarTodo -- ^ La instrucción "olvidar todo"
           | Olvidar [Token] -- ^ La instrucción "olvidar var"
           | Fin -- ^ La instrucción "fin"
-          deriving (Eq,Show)
+          deriving (Eq)
+instance Show Inst where
+    show Estado = "estado:"
+    show OlvidarTodo = "olvidadas todas las variables."
+    show (Olvidar toks) = "olvidadas las variables: " ++ (commaJoin toks)
+        where commaJoin (t: []) = takeStr t
+              commaJoin (t:ts)  = (takeStr t) ++ ", " ++ (commaJoin ts)
+    show Fin = "Saliendo de SetCalc."
 
 {-|
   TAD /Expresion/:
@@ -78,6 +85,7 @@ data Expresion = Union Expresion Expresion -- ^ Unión de dos conjuntos
                | OpConj Conjunto -- ^ Conjunto.
 	       | OpId Token -- ^ Identificador de algún conjunto.
                | Asignacion Token Expresion -- ^ Asignación de algún conjunto a una variable
+               | Instruccion Inst
                  deriving (Eq)
 instance Show Expresion where
     show (Union e1 e2) = (show e1) ++ " + " ++ (show e2)
@@ -92,6 +100,7 @@ instance Show Expresion where
     show (OpConj c) = (show c)
     show (OpId t) = (show $ takeStr t)
     show (Asignacion t e) = (show $ takeStr t) ++ " := " ++ (show e)
+    show (Instruccion i) =  show i
 
 {-|
   TAD /Ext/:

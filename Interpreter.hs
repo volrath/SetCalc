@@ -84,16 +84,18 @@ type TupParser = (SymTable, AST)
 interpreter :: TupParser
             -> IO()
 interpreter tp@(map, ast) = case chequeoEstructural tp of
-                              Nothing -> print $ printOperations map ast
+                              Nothing -> putStr $ printOperations map ast
                               Just errs -> error $ errs
 
 printOperations :: SymTable
                 -> AST
                 -> String
-printOperations map (Expr e) = (show e) ++ " ==> " ++ (show $ calcularExpresion map e)
-printOperations map (Secuencia []) = "\n"
+printOperations map (Expr e) = (show e) ++ " ==> " ++ (show $ calcularExpresion map e) ++ "\n"
+printOperations map (Secuencia []) = ""
 printOperations map (Secuencia (e:[])) = printOperations map (Expr e)
 printOperations map (Secuencia (e:es)) = (printOperations map (Expr e)) ++ (printOperations map (Secuencia es))
+
+
 
 
 
@@ -259,11 +261,16 @@ evalExtension :: SymTable
               -> SetC Elemento
 evalExtension map e = SetC.emptySet
 
+
+{-
+Evalua tanto un universo de una variable como el universo de todos
+los caracteres imprimible en haskell.
+-}
 evalUniverso :: SymTable
              -> Univ
              -> SetC Elemento
 evalUniverso map (UniversoT (Conjunto cu d)) = cu
-evalUniverso map (UniversoDe t) = conjuntoSetC $ takeConj (map Map.! (takeStr t))
+evalUniverso map (UniversoDe t) = dominioSetC map $ conjuntoDom$ takeConj (map Map.! (takeStr t))
 
 {-
 Recibe un
@@ -313,13 +320,27 @@ takeConj :: Symbol  -- ^ /Symbol/ sobre el que se quiere su conjunto asociado.
 takeConj (Symbol (_, Just a)) = a
 takeConj (Symbol (_, Nothing)) = error $ "Error 0x08042FFD"
 
+{-
+  Obtiene el setC de un conjunto
+-}
 conjuntoSetC :: Conjunto
              -> SetC Elemento
 conjuntoSetC (Conjunto sc d) = sc
 
+{-
+  Obtiene el dominio de un cojunto
+-}
 conjuntoDom :: Conjunto
             -> Dominio
 conjuntoDom (Conjunto sc d) = d
+
+{-
+  Dado un symtable, busca el valor en setc de un dominio
+-}
+dominioSetC :: SymTable -> Dominio -> SetC Elemento
+dominioSetC _ (Dominio sc) = sc
+dominioSetC mapa (DominioID dom) = dominioSetC mapa $ takeDom $ mapa Map.! dom
+
 
 sonElementos :: [Elemento]
              -> Bool
