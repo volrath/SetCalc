@@ -65,7 +65,6 @@ module Interpreter (
   chequeoEstructural,
   chequeoDinamico,
 ) where
-
 import System.IO
 import System.Exit
 import Char
@@ -181,7 +180,7 @@ calcularExpresion map1 (Union e1 e2) = SetC.unionSet (calcularExpresion map1 e1)
 calcularExpresion map1 (Interseccion e1 e2) = SetC.intersectSet (calcularExpresion map1 e1) (calcularExpresion map1 e2)
 calcularExpresion map1 (Diferencia e1 e2) = SetC.minusSet (calcularExpresion map1 e1) (calcularExpresion map1 e2)
 --calcularExpresion map1 (Complemento e) =  evalComplemento map1 (calcularExpresion map1 e)
-calcularExpresion map1 (Cartesiano e1 e2) = SetC.mapSet Cto (SetC.crossProduct (calcularExpresion map1 e1) (calcularExpresion map1 e2))
+calcularExpresion map1 (Cartesiano e1 e2) = crossProduct (calcularExpresion map1 e1) (calcularExpresion map1 e2)
 calcularExpresion map1 (Partes e) = SetC.mapSet Cto (SetC.powerSet (calcularExpresion map1 e))
 calcularExpresion map1 (OpUniverso u) = evalUniverso map1 u
 calcularExpresion map1 (OpExtension ext) = evalExtension map1 ext
@@ -433,3 +432,8 @@ sonElementos :: [Elemento]
 sonElementos [] = True 
 sonElementos ((Elem e): es) = True && sonElementos es
 sonElementos _ = False
+
+crossProduct :: SetC Elemento
+             -> SetC Elemento
+             -> SetC Elemento
+crossProduct x y = SetC.fromList [(Tupla (a,b)) | a <- (SetC.toList x), b <- (SetC.toList y)]

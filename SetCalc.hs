@@ -398,16 +398,16 @@ crearConjunto map (k, v) = case  Map.lookup (k) (map) of
 actualizarMapa :: Map.Map String Symbol -- ^ Mapa generado por las declaraciones del programa hasta el momento.
                -> [(String, Symbol)]  -- ^ Lista de tuplas que fueron usadas en asignaciones y en generadores.
                -> Either ((Map.Map String Symbol), String) (Map.Map String Symbol) -- ^ Devuelve una tupla con el mapa generado hasta el momento con las asignaciones que han sido aceptadas acompañada de un String con los errores en caso de haber errores de contexto, en caso contrario devuelve el mapa resultante de realizar las asignaciones.
-actualizarMapa map1 ((m2key, m2value):[]) = case actualizarMapa' m2key map1 of
+actualizarMapa map1 (m2:[]) = case actualizarMapa' m2 map1 of
                                              Right res -> Right res
                                              Left err -> Left (map1,err)
-actualizarMapa map1 ((m2key, m2value):m2s) = case actualizarMapa' m2key map1 of
-                                              Right res -> case actualizarMapa map1 m2s of 
-                                                            Right res1 -> Right (Map.union res res1)
-                                                            Left (m,err) -> Left (Map.union res m, err)
-                                              Left err -> case actualizarMapa map1 m2s of
-                                                           Right res1 -> Left (res1,err)
-                                                           Left (m,err1) -> Left (m,err++err1)
+actualizarMapa map1 (m2:m2s) = case actualizarMapa' m2 map1 of
+                                  Right res -> case actualizarMapa map1 m2s of 
+                                                 Right res1 -> Right (Map.union res res1)
+                                                 Left (m,err) -> Left (Map.union res m, err)
+                                  Left err -> case actualizarMapa map1 m2s of
+                                                Right res1 -> Left (res1,err)
+                                                Left (m,err1) -> Left (m,err++err1)
 
 {-|
   Recibe una variable y un mapa de símbolos y revisa si dicha
@@ -416,13 +416,20 @@ actualizarMapa map1 ((m2key, m2value):m2s) = case actualizarMapa' m2key map1 of
   para la siguiente entrega), pero si no lo encuentra devuelve
   un error correspondiente.
 -}
-actualizarMapa' :: String -- ^ Variable a chequear
+actualizarMapa' :: (String,Symbol)-- ^ Variable a chequear
                 -> Map.Map String Symbol -- ^ Mapa en donde se buscará la variable
                 -> Either String (Map.Map String Symbol)-- ^ Si se encontró la variable se devuelve el mapa actualizado. Error en caso contrario.
-actualizarMapa' key map = case Map.lookup (key) (map) of
-                           Just (Symbol (_, Just con)) -> Right map
-                           Just (Symbol (_, Nothing)) -> Left ("La variable " ++ key ++ " no esta definida como conjunto y es usada en el comando introducido. \n")
-                           Nothing -> Left ("La variable " ++ key ++ " no esta definida como conjunto y es usada en la linea y en en el comando introducido. \n")
+actualizarMapa' (key,sym) map = case sym of 
+                                  Symbol (Just dom, Nothing) -> case Map.lookup (key) (map) of
+                                                                  Just (Symbol (Just dom2,_)) -> Right map
+                                                                  Just (Symbol (Nothing,_)) -> Left ("La variable " ++ key ++ " no esta definida como dominio y es usada en el comando introducido. \n")
+                                                                  Nothing -> Left ("La variable " ++ key ++ " no esta definida como dominio y es usada en la linea y en en el comando introducido. \n")
+
+                                  Symbol (Nothing, Just conj) -> case Map.lookup (key) (map) of
+                                                                   Just (Symbol (_, Just con)) -> Right map
+                                                                   Just (Symbol (_, Nothing)) -> Left ("La variable " ++ key ++ " no esta definida como conjunto y es usada en el comando introducido. \n")
+                                                                   Nothing -> Left ("La variable " ++ key ++ " no esta definida como conjunto y es usada en la linea y en en el comando introducido. \n")
+                                  _ -> error $ "Error 0xABF563C"
       
 chequearAsignacion :: AST -- ^ AST a analizar
                    -> Map.Map String Symbol -- ^ Mapa de símbolos resultante
@@ -451,7 +458,7 @@ chequearAsignacion' exp map = case exp of
                                OpExtension (ConjuntoExt set gens fils) -> Map.union map (chequearGenerador gens)
                                Asignacion var x -> Map.union (Map.insert (takeStr var) (Symbol (Nothing, Just (Conjunto (SetC.emptySet) (Dominio (SetC.emptySet))))) map) (chequearAsignacion' x map)
                                OpId var -> Map.insert (takeStr var) (Symbol (Nothing, Just (Conjunto (SetC.emptySet) (Dominio (SetC.emptySet))))) map
-                               OpUniverso(UniversoDe var) -> Map.insert (takeStr var) (Symbol (Nothing, Just (Conjunto (SetC.emptySet) (Dominio (SetC.emptySet))))) map
+                               OpUniverso(UniversoDe var) -> Map.insert (takeStr var) (Symbol (Just (Dominio (SetC.emptySet)),Nothing)) map
                                _ -> Map.empty
 
 {-|
