@@ -164,14 +164,14 @@ data Univ = UniversoT Conjunto -- ^ Universo de todos los caracteres imprimibles
 data Elemento = Elem String -- ^ Un elemento cualquiera.
               | Ident Token -- ^ Un identificador.
               | Cto (SetC Elemento) -- ^ Un conjunto de elementos.
-              | Lista [Elemento] -- ^ Una lista de elementos.
+              | Tupla (Elemento,Elemento) -- ^ Una lista de elementos.
               | Rango Char Char -- ^ Un rango de elementos.
               deriving (Eq)
 instance Show Elemento where
     show (Elem s) = show s
     show (Ident t) = "Var(" ++ (show $ takeStr t) ++ ")"
     show (Cto c) = show c
-    show (Lista es) = show es
+    show (Tupla (es,el)) = "[" ++ (show es) ++ "," ++ (show  el) ++ "]"
     show (Rango c1 c2) = (show c1) ++ ".." ++ (show c2)
 
 {-|

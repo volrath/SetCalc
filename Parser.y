@@ -99,20 +99,24 @@ Dominio : ConjuntoDom                                                { Dominio $
 ConjuntoDom : '{' '}'                                                { (SetC.emptySet)  }
             | '{' LAlfa '}'                                          { (SetC.fromList $2) }
             | '{' ListaConjDom '}'                                   { (SetC.fromList $2) }
-            | '{' ListaArregloDom '}'                                { (SetC.fromList $2) }
+            | '{' ListaTuplaDom '}'                                  { (SetC.fromList $2) }
 
 LAlfa : str                                                          { [Elem (takeStr $1)] }
       | LAlfa ',' str                                                { $1 ++ [Elem (takeStr $3)] }
 
-ListaConjDom : '{' '}'                                               { [Cto (SetC.emptySet)] }
-             | '{' LAlfa '}'                                         { [Cto (SetC.fromList $2)] }
-             | ListaConjDom ',' ListaConjDom                         { $1 ++ $3 }
-             | '{' ListaConjDom '}'                                  { [Cto (SetC.fromList $2)] }
+ConjDom : '{' '}'                                                    { Cto (SetC.emptySet) }
+        | '{' LAlfa '}'                                              { Cto (SetC.fromList $2) }
+        | '{' ListaConjDom '}'                                       { Cto (SetC.fromList $2) }
 
-ListaArregloDom : '[' ']'                                            { [Lista []] }
-                | '[' LAlfa ']'                                      { [Lista $2] }
-                | ListaArregloDom ',' ListaArregloDom                { List.union $1 $3 }
-                | '[' ListaArregloDom ']'                            { [Lista $2] }
+ListaConjDom : ConjDom                                               { [$1] }
+             | ListaConjDom ',' ConjDom                              { $1 ++ [$3] }
+
+TuplaDom : '[' str ',' str ']'                                       { Tupla (Elem (takeStr $2),Elem (takeStr $4)) }
+         | '[' TuplaDom ',' TuplaDom ']'                             { Tupla ($2,$4) }
+         | '[' ConjDom ',' ConjDom ']'                               { Tupla ($2,$4) }
+
+ListaTuplaDom : TuplaDom                                             { [$1] } 
+              | ListaTuplaDom ',' TuplaDom                           { $1 ++ [$3] }
 
 Lista_id : id                                                        { [$1] }
          | Lista_id ',' id                                           { $1 ++ [$3] }
@@ -120,23 +124,26 @@ Lista_id : id                                                        { [$1] }
 Conjunto : '{' '}'                                                   { Conjunto (SetC.emptySet) (Dominio (SetC.emptySet)) }
          | '{' Alfa_ran '}'                                          { Conjunto (SetC.fromList $2) (Dominio (SetC.emptySet)) }
          | '{' ListaConj '}'                                         { Conjunto (SetC.fromList $2) (Dominio (SetC.emptySet)) }
-         | '{' ListaArreglo '}'                                      { Conjunto (SetC.fromList $2) (Dominio (SetC.emptySet)) }
+         | '{' ListaTupla '}'                                        { Conjunto (SetC.fromList $2) (Dominio (SetC.emptySet)) }
 
 Alfa_ran : str                                                       { [Elem (takeStr $1)] }
          | str '..' str                                              { [Rango (head $ takeStr $1) (head $ takeStr $3)] }
          | Alfa_ran ',' Alfa_ran                                     { $1 ++ $3 }
 
-ListaConj : '{' '}'                                                  { [Cto (SetC.emptySet)] }
-          | '{' Alfa_ran '}'                                         { [Cto (SetC.fromList $2)] }
-          | ListaConj ',' ListaConj                                  { $1 ++ $3 }
-          | '{' ListaConj '}'                                        { [Cto (SetC.fromList $2)] }
-          | '{' ListaArreglo '}'                                     { [Cto (SetC.fromList $2)] }
+Conj : '{' '}'                                                       { Cto (SetC.emptySet) }
+     | '{' Alfa_ran '}'                                              { Cto (SetC.fromList $2) }
+     | '{' ListaConj '}'                                             { Cto (SetC.fromList $2) }
+     | '{' ListaTupla '}'                                            { Cto (SetC.fromList $2) }
 
-ListaArreglo : '[' ']'                                               { [Lista []] }
-             | '[' Alfa_ran ']'                                      { [Lista $2] }
-             | ListaArreglo ',' ListaArreglo                         { List.union $1 $3 }
-             | '[' ListaArreglo ']'                                  { [Lista $2] }
-             | '[' ListaConj ']'                                     { [Lista $2] }
+ListaConj : Conj                                                     { [$1] }
+          | ListaConj ',' Conj                                       { $1 ++ [$3] }
+
+TuplaC : '['str ',' str ']'                                          { Tupla (Elem (takeStr $2),Elem (takeStr $4)) }
+       | '[' TuplaC ',' TuplaC ']'                                   { Tupla ($2,$4) }
+       | '[' Conj ',' Conj ']'                                       { Tupla ($2,$4) }
+
+ListaTupla : TuplaC                                                  { [$1] }
+           | ListaTupla ',' TuplaC                                   { $1 ++ [$3] }
 
 Asig     : id ':=' Expr                                              { Asignacion $1 $3 }
 
@@ -166,18 +173,22 @@ Extension : '{' ConjuntoId '|' LGenerador ',' LFiltro '}'            { ConjuntoE
           | '{' ConjuntoId '|' LGenerador '}'                        { ConjuntoExt $2 $4 [] }
 
 ConjuntoId : id                                                      { (SetC.fromList [Ident $1]) }
-           | ListaArrAlfaId                                          { (SetC.fromList $1) }
+           | ListaTuplaAlfaId                                        { (SetC.fromList $1) }
            | ListaConjAlfaId                                         { (SetC.fromList $1) }
 
-ListaArrAlfaId : '['Lista_id ']'                                     { [Lista (map Ident $2)] }
-               | ListaArrAlfaId ',' ListaArrAlfaId                   { List.union $1 $3 }
-               | '['ListaArrAlfaId ']'                               { [Lista $2] }
-               | '['ListaConjAlfaId ']'                              { [Lista $2] }
+TuplaAlfaId : '['id ',' id ']'                                       { Tupla (Ident $2, Ident $4) }
+            | '['TuplaAlfaId ',' TuplaAlfaId ']'                     { Tupla ($2,$4) }
+            | '['ConjAlfaId ',' ConjAlfaId ']'                       { Tupla ($2,$4) }
 
-ListaConjAlfaId : '{' Lista_id '}'                                   { [Cto (SetC.fromList (map Ident $2))] }
-                | ListaConjAlfaId ',' ListaConjAlfaId                { $1 ++ $3 }
-                | '{' ListaConjAlfaId '}'                            { [Cto (SetC.fromList $2)] }
-                | '{' ListaArrAlfaId '}'                             { [Cto (SetC.fromList $2)] }
+ListaTuplaAlfaId : TuplaAlfaId                                       { [$1] }
+                 | ListaTuplaAlfaId ',' TuplaAlfaId                  { $1 ++ [$3] }
+
+ConjAlfaId : '{' Lista_id '}'                                        { Cto (SetC.fromList (map Ident $2)) }
+           | '{' ListaConjAlfaId '}'                                 { Cto (SetC.fromList $2) }
+           | '{' ListaTuplaAlfaId '}'                                { Cto (SetC.fromList $2) }
+
+ListaConjAlfaId : ConjAlfaId                                         { [$1] }
+                | ListaConjAlfaId ',' ConjAlfaId                     { $1 ++ [$3] }
 
 LGenerador : Generador                                               { [$1] }
            | LGenerador ',' Generador                                { $1 ++ [$3] }
