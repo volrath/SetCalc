@@ -99,9 +99,43 @@ printOperations map (Secuencia (e:es)) = (printOperations map (Expr e)) ++ (prin
 printInstruction :: SymTable
                  -> Inst
                  -> String
-printInstruction map Estado = (show map) ++ "\n"
+printInstruction map Estado = printMap map
 printInstruction map Fin = error $ show Fin
 printInstruction map i = show i
+
+
+printMap :: SymTable
+         -> String
+printMap map = (printDomains map) ++ "\n" ++ (printSets map) ++ "\n"
+
+printDomains :: SymTable
+             -> String
+printDomains map = foldl (++) "Dominios:\n" (stringDomain map $ Map.toList map)
+
+stringDomain :: SymTable
+             -> [(String, Symbol)]
+             -> [String]
+stringDomain _ [] = []
+stringDomain mapa ((var,sym):sts) = case dom of
+                                      Just (DominioID d)  -> (var ++ " es dominio: " ++ (show $ takeStr d) ++ " ==> " ++ (show $ dominioSetC mapa (DominioID d)) ++ "\n"):(stringDomain mapa sts)
+                                      Just (Dominio dset) -> (var ++ " es dominio: " ++ (show dset) ++ "\n"):(stringDomain mapa sts)
+                                      Nothing -> stringDomain mapa sts
+    where
+      dom = (\(Symbol (d,c)) -> d) sym
+
+
+printSets :: SymTable
+          -> String
+printSets map = foldl (++) "Conjuntos:\n" (stringSet $ Map.toList map)
+
+stringSet :: [(String, Symbol)]
+          -> [String]
+stringSet [] = []
+stringSet ((var,sym):sts) = case set of
+                              Just c@(Conjunto sc d) -> (var ++ " tiene dominio: " ++ (show d) ++ " y su valor actual es: " ++ (show c) ++ "\n"):(stringSet sts)
+                              Nothing -> stringSet sts
+    where
+      set = (\(Symbol (d,c)) -> c) sym
 
 
 

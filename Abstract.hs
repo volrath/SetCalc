@@ -39,7 +39,10 @@ data Symbol = Symbol (Maybe Dominio, Maybe Conjunto) -- ^ Un símbolo puede ser u
 -}
 data Dominio = Dominio (SetC Elemento) -- ^ Dominio
              | DominioID Token
-             deriving (Eq, Show)
+             deriving (Eq)
+instance Show Dominio where
+    show (Dominio sc) = show sc
+    show (DominioID t) = show $ (\(TkId p s) -> s) t
 
 {-|
   TAD /Conjunto/:
