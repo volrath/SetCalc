@@ -1,6 +1,5 @@
 Conjuntos por intencion..........................
 Filtros, Funciones predefinidas
-Terminar Complemento 
 Hacer que no se pueda olvidar un dominio si es dominio de algun conjunto -
 Documentar.
 Arreglar el codigo, y todos los comentarios inutiles

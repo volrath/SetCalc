@@ -1,12 +1,3 @@
-{-
-Recibe un mapa original y un ast, en el ast empieza a buscar asignaciones y cuando
-las consigue, mete la variable del lado izquierdo como key de un nuevo mapa y guarda
-en el lado derecho lo que devuelve calcularExpresion de dicha asignacion. Luego
-con ese nuevo mapa, se contrastan si los valores de las variables tienen tipos aceptables
-en el mapa original, segun el dominio ke tienen asignado
--}
---chequeoDinamico
-
 module Interpreter (
 -- * Función Principal.
   interpreter,
@@ -27,14 +18,22 @@ type SymTable = Map.Map String Symbol
 type SetTable = Map.Map String (SetC Elemento)
 type TupParser = (SymTable, AST)
 
-interpreter :: TupParser
-            -> IO()
+{-|
+  Función que recibe un SymTable y un AST el cual ya ha sido chequeado estática y dinámicamente,
+  y se encarga de imprimir cuales han sido las  expresiones realizadas.
+-}
+interpreter :: TupParser -- ^ Tupla de SymTable y AST a imprimir
+            -> IO() -- ^ Impresión.
 interpreter tp@(map, ast) = C.catch(putStr $ printOperations map ast) fail
                              where fail e = exitWith ExitSuccess
 
-printOperations :: SymTable
-                -> AST
-                -> String
+{-|
+  Recibe un SymTable y un AST y se encarga de representar de forma amigable para el usuario
+  las expresiones descritas en el AST.
+-}
+printOperations :: SymTable -- ^ SymTable en donde se buscará la representación de las variables.
+                -> AST -- ^ AST a analizar.
+                -> String -- ^ Representación amigable de las expresiones.
 printOperations map (Expr (Instruccion i)) = printInstruction map i
 printOperations map (Expr e) = (show e) ++ " ==> " ++ (show $ calcularExpresion map e) ++ "\n"
 printOperations map (Secuencia []) = ""
@@ -42,21 +41,29 @@ printOperations map (Secuencia (e:[])) = printOperations map (Expr e)
 printOperations map (Secuencia (e:es)) = (printOperations map (Expr e)) ++ (printOperations map (Secuencia es))
 
 
-
-printInstruction :: SymTable
-                 -> Inst
-                 -> String
+{-|
+  Recibe un SymTable y una instrucción y se encarga de representar de forma amigable para el
+  usuario el resultado de la ejecución de dicha instruccion
+-}
+printInstruction :: SymTable -- ^ SymTable en donde se buscará el resultado de las instrucciones.
+                 -> Inst -- ^ Instrucción a ejecutar.
+                 -> String -- ^ Representación de la ejecución de la instruccion
 printInstruction map Estado = printMap map
 printInstruction map Fin = error $ show Fin
 printInstruction map i = show i
 
-
-printMap :: SymTable
-         -> String
+{-|
+  Imprime el resultado de ejecutar la instrucción estado en un momento dado.
+-}
+printMap :: SymTable -- ^ SymTable de donde se sacarán todas las variables usadas y sus respectivos valores
+         -> String -- ^ Representación.
 printMap map = (printDomains map) ++ "\n" ++ (printSets map) ++ "\n"
 
-printDomains :: SymTable
-             -> String
+{-|
+  Imprime todos los dominios en un SymTable dado.
+-}
+printDomains :: SymTable -- ^ SymTable donde se buscarán los dominios.
+             -> String -- ^ Representación de los dominios.
 printDomains map = foldl (++) "Dominios:\n" (stringDomain map $ Map.toList map)
 
 stringDomain :: SymTable
@@ -70,9 +77,11 @@ stringDomain mapa ((var,sym):sts) = case dom of
     where
       dom = (\(Symbol (d,c)) -> d) sym
 
-
-printSets :: SymTable
-          -> String
+{-|
+  Imprime todos los conjuntos en un SymTable dado.
+-}
+printSets :: SymTable -- ^ SymTable donde se buscarán los conjuntos.
+          -> String -- ^ Representación de los conjuntos.
 printSets map = foldl (++) "Conjuntos:\n" (stringSet $ Map.toList map)
 
 stringSet :: [(String, Symbol)]
@@ -86,10 +95,14 @@ stringSet ((var,sym):sts) = case set of
 
 
 
-
+{-|
+  Recibe una tupla de SymTable y AST y devuelve una tupla con los posibles errores
+  dinámicos encontrados en las asignaciones del AST.
+-}
 chequeoDinamico :: TupParser
                 -> (String, SymTable)
 chequeoDinamico (mapa, (Secuencia exprs)) = foldl chequeoDinamico' ([], mapa) exprs
+
 
 chequeoDinamico' :: (String, SymTable)
                  -> Expresion
@@ -173,7 +186,7 @@ verificarTipos exp@(Complemento e) = case verificarTipos e of
 verificarTipos exp@(Partes e) = case verificarTipos e of
                                   Nothing -> Nothing
                                   Just errs -> Just $ mostrarError exp e errs
-verificarTipos exp@(OpUniverso uni) = Nothing -- ^ Arreglar esto
+verificarTipos exp@(OpUniverso uni) = Nothing
 verificarTipos exp@(OpExtension ext) = Nothing -- ^ Arreglar esto
 verificarTipos exp@(OpConj c) = verificarTipoConjunto set set
     where set = conjuntoSetC c
@@ -271,7 +284,60 @@ compararTipos _ _ = False
 evalExtension :: SymTable
               -> Ext
               -> SetC Elemento
-evalExtension map e = SetC.emptySet
+evalExtension mapa (ConjuntoExt (Ident el) ((Gen _ t):[]) fls) = SetC.fromList [x | x <- (generador mapa t), evalFiltros1 mapa x fls]
+    where
+      generador mapa t = (\(Just l) -> l) $ SetC.takeType $ conjuntoSetC $ takeConj $ (mapa Map.! (takeStr t))
+evalExtension mapa (ConjuntoExt (Tupla (Ident x, Ident y)) [(Gen a t1), (Gen b t2)] fls)
+    | (takeStr x) == a = SetC.fromList [ Tupla (x,y) | x <- (generador mapa t1), y <- (generador mapa t2)]
+    | otherwise = SetC.fromList [ Tupla (x,y) | x <- (generador mapa t2), y <- (generador mapa t1)]
+    where generador mapa t = (\(Just l) -> l) $ SetC.takeType $ conjuntoSetC $ takeConj $ (mapa Map.! (takeStr t))
+
+evalFiltros1 :: SymTable
+             -> Elemento
+             -> [Filtro]
+             -> Bool
+evalFiltros1 mapa x fls = foldl (&&) True (map (filtrar1 mapa x) fls)
+
+
+filtrar1 :: SymTable
+         -> Elemento
+         -> Filtro
+         -> Bool
+filtrar1 mapa (Elem s) (FilMayuscula _) = SetC.subSet (SetC.fromList s) (SetC.fromList ['A' .. 'Z'])
+filtrar1 mapa (Elem s) (FilLetra _) = SetC.subSet (SetC.fromList s) (SetC.fromList (['A' .. 'Z'] ++ ['a' .. 'z']))
+filtrar1 mapa (Elem s) (FilDigito _) = SetC.subSet (SetC.fromList s) (SetC.fromList ['0' .. '9'])
+filtrar1 mapa (Elem s) (FilSimbolo _) = SetC.subSet (SetC.fromList s) (SetC.fromList (['A' .. 'Z'] ++ ['a' .. 'z'] ++ ['0' .. '9']))
+filtrar1 mapa (Cto a) (FilIgual _ (Ident t)) = (conjuntoDe mapa t) == a
+    where
+      conjuntoDe mapa t = conjuntoSetC $ takeConj (mapa Map.! (takeStr t))
+filtrar1 mapa a (FilIgual _ b) = a == b
+filtrar1 mapa (Elem a) (FilMenor _ (Elem b)) = a < b
+filtrar1 mapa (Elem a) (FilMayor _ (Elem b)) = a > b
+filtrar1 mapa _ _ = False
+
+
+
+
+
+
+
+
+
+-- evalFiltros :: SymTable
+--              -> [Filtro]
+--              -> Bool
+-- evalFiltros mapa fls = foldl (&&) True $ map (aplicarFiltro mapa) fls
+
+-- aplicarFiltro :: SymTable
+--               ->
+--               -> Filtro
+--               -> Bool
+-- aplicarFiltro mapa (FilIgual e1 e2) = 
+-- aplicarFiltro mapa (FilMenor e1 e2) =
+-- aplicarFiltro mapa (FilMayor e1 e2) =
+-- aplicarFiltro mapa (FilMayuscula e) = SetC.subset
+
+        
 
 
 {-
