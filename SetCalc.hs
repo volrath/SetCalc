@@ -110,14 +110,18 @@ loop' mapaActual linea = do
       where
         tp = parsearLinea mapaActual linea
 
-
+{-|
+  Función que captura la excepción de salida generada por la instrucción
+  "fin" para finalizar el interpretador.
+-}
                        
 printOrKill e = if (e == C.ExitException ExitSuccess)
                 then C.throwIO e
                 else hPrint stderr e
 
 {-|
-  catchOrPrint
+  Función que realiza el manejo de los errores estructurales y
+  dinámicos generador por el parseo del comando actual.
 -}
 
 
@@ -157,6 +161,11 @@ readFileOrCatch fpath = catch (try fpath) fail
         return $ Right parserResult
       fail e = return (Left e)
 
+{-|
+  Función que realiza el chequeo de errores de contexto entre el mapa
+  actual y el parseo del comando introducido.
+-}
+
 chequear :: Map.Map String Symbol
          -> [Token]
          -> TupParser
@@ -166,6 +175,12 @@ chequear map a = chequeo $ parser $ a
       chequeo f@(m2,ast) = case revisarErrores map (Right f) ast of
                    Right (m,t) -> existenErrores (m,t) (Map.toList m)
                    Left err -> error $ err
+
+{-|
+  Función auxiliar de chequear que realiza la revisión de errores de
+  contexto revisando el árbol generado por el parser y comparando con el
+  mapa que se va generando y el mapa definido en los ciclos previos.
+-}
 
 revisarErrores :: (Map.Map String Symbol)
                -> Either (TupParser,String) TupParser
@@ -212,6 +227,11 @@ revisarErrores map map' intocable = case map' of
                                                                                                                   Left err3 -> revisarErrores map (Left((map1, Secuencia xs),err2++"\n"++err3)) intocable
                                                                                    _ -> revisarErrores map (Left((map1, Secuencia xs),err2)) intocable 
 
+{-|
+  Función auxiliar de revisarErrores que realiza la revisión de errores de contexto
+  en el mapa definido por el comando ingresado y en la secuencia que le suministra
+  revisarErrores.
+-}
                                             
 revisarErrores' :: (Map.Map String Symbol) -- ^ Tupla que puede ser TupParser en caso de no haber errores o en caso de haber errores de contexto,una tupla que contiene el Data.Map generado hasta el momento y un string con todos los errores concatenados.
             -> Either (TupParser,String) TupParser -- ^ Es TupParser en caso de que la expresion o declaración analizada no tenga errores de contexto o un String en caso contrario.
@@ -306,15 +326,21 @@ crearValor map x = case snd(x) of
                      Symbol(Just dom, Just conj) -> crearSymbol map (fst(x),Symbol(Just dom, Just conj))
                      _ -> Left "Error 0x08042FF2"
 
-
-existenErrores :: TupParser
-               -> [(String,Symbol)]
-               -> TupParser
+{-|
+  Función que permite hacer el manejo de errores de la función
+  existeSymbol.
+-}
+existenErrores :: TupParser -- ^ Tupla devuelta después del chequeo a la que se le desea analizar los errores.
+               -> [(String,Symbol)] -- ^ Arreglo de identificadores y valores que definen el mapa definido hasta el momento.
+               -> TupParser -- ^ Tupla sin modificaciones después del chequeo.
 
 existenErrores t xs = case existeSymbol t xs of
                          Right t -> t
                          Left err -> error $ err
-
+{-|
+  Función que revisa si existe un valor cualquiera en el mapa generado
+  que referencie un dominio inexistente.
+-}
 existeSymbol :: TupParser
              -> [(String,Symbol)]
              -> Either String TupParser
@@ -327,6 +353,11 @@ existeSymbol (map,ast) (x:xs) = case existeSymbol' map x of
                                   Left err -> case existeSymbol (map,ast) xs of
                                                 Right m1 -> Left err
                                                 Left err2 -> Left (err ++ "\n" ++ err2)
+
+{-|
+  Función auxiliar de existeSymbol que permite realizar el "pattern-matching"
+  necesarios para la detección del uso de variables no definidas.
+-}
 
 existeSymbol' :: Map.Map String Symbol
              -> (String,Symbol)
@@ -447,7 +478,13 @@ actualizarMapa' (key,sym) map = case sym of
                                                                    Just (Symbol (_, Nothing)) -> Left ("La variable " ++ key ++ " no esta definida como conjunto y es usada en el comando introducido. \n")
                                                                    Nothing -> Left ("La variable " ++ key ++ " no esta definida como conjunto y es usada en el comando introducido. \n")
                                   _ -> error $ "Error 0xABF563C"
-      
+
+
+{-|
+   Recibe el arbol de expresiones generados por el Parser
+   y analiza las variables que han sido usadas en asignaciones
+   y devuelve un mapa con éstas para luego realizar el manejo de errores.
+-}      
 chequearAsignacion :: AST -- ^ AST a analizar
                    -> Map.Map String Symbol -- ^ Mapa de símbolos resultante
 chequearAsignacion (Secuencia []) = Map.empty
@@ -480,14 +517,15 @@ chequearAsignacion' exp map = case exp of
 
 {-|
   Crea un mapa de símbolos con las variables usadas en los
-  lados derechos de cada generador de un conjunto por extensión,
-  este mapa luego será constrastado contra el mapa de símbolos
-  original que se ha parseado.
+  lados derechos de cada generador de un conjunto por extensión y
+  con las variables usadas en los filtros en caso de que no sean
+  variables dummies, este mapa luego será constrastado contra el 
+  mapa de símbolos original que se ha parseado.
 -}
-chequearGenerador :: Elemento
+chequearGenerador :: Elemento -- ^ Elemento que se usa para definir las variables dummy del conjunto por extensión.
                   -> [Generador] -- ^ Lista de generadores  
-                  -> SymTable
-                  -> [Filtro]
+                  -> SymTable -- ^ Mapa de simbolos generado hasta el momento por chequearAsignacion' para realizar una llamada a la función en un paso posterior.
+                  -> [Filtro] -- ^ Lista de filtros usados en la definición del conjunto por extensión.
                   -> SymTable -- ^ Mapa generado con las variables de los lados derechos de los generadores.
 chequearGenerador x [Gen dum con] map fils = case x of 
                                            Tupla ((Ident x1), (Ident x2)) -> if dum == (takeStr x1)
@@ -502,10 +540,15 @@ chequearGenerador x [Gen dum con] map fils = case x of
 chequearGenerador x (gen:xs) map fils  = Map.union (chequearGenerador x [gen] map fils) (chequearGenerador x xs map fils)
 
 
-revisarFiltros :: SymTable
-               -> Elemento
-               -> [Filtro]
-               -> SymTable
+{-|
+  Revisa la lista de Filtros de un conjunto por extensión para generar un 
+  mapa de símbolos compuesto por las variables no dummy usadas en los filtros.
+-}
+
+revisarFiltros :: SymTable -- ^ Mapa de símbolos generado hasta el momento por chequearAsignacion' usado para llamar a la función en uno de los casos de Filtro.
+               -> Elemento -- ^ Elemento que se usa para definir las variables dummy del conjunto por extensión.
+               -> [Filtro] -- ^ Lista de filtros que se va a revisar.
+               -> SymTable -- ^ Mapa de símbolos con las variables no dummy utilizadas en los filtros.
 revisarFiltros map x [] = Map.empty
 revisarFiltros map x [fil] = case x of 
                                   Tupla ((Ident x1),(Ident x2)) -> case fil of
@@ -712,9 +755,16 @@ takePos (TkNegar a) = a
 takePos (TkId pos a) = pos
 takePos (TkStr pos a) = pos
 
-olvidarVariables :: [Token]
-                 -> SymTable
-                 -> Either String SymTable
+{-|
+  Función que se encarga de ejecutar la instrucción "olvidar id"
+  revisando si la variable está en uso antes de eliminarla del mapa
+  de símbolos.
+-}
+
+
+olvidarVariables :: [Token] -- ^ Lista de los identificadores que se desean olvidar
+                 -> SymTable -- ^ Mapa de símbolos generado hasta el momento por el interpretador y el parseo de la línea actual.
+                 -> Either String SymTable -- ^ En caso de un error devuelve un String con el error y en caso contrario devuelve el mapa de símbolos modificado.
 
 olvidarVariables (x:[]) map = case Map.member (takeStr x) map of
                                 True -> case estaUsadoDominio (takeStr x) (Map.toList map) of
@@ -728,9 +778,15 @@ olvidarVariables (x:xs) map = case olvidarVariables [x] map of
                                               Left err2 -> Left (err ++ "\n" ++ err2)
 
 
-estaUsadoDominio :: String
-                 -> [(String,Symbol)]
-                 -> Bool
+{-|
+  Función auxiliar de olvidarVariables que permite determinar si
+  una variable esta siendo referenciada como dominio por alguna variable
+  de la tabla de símbolos actual.
+-}
+
+estaUsadoDominio :: String -- ^ Nombre de la variable que se desea comprobar si está siendo usada.
+                 -> [(String,Symbol)] -- ^ Arreglo de los valores y identificadores del mapa de símbolos actual
+                 -> Bool -- ^ Valor booleano que devuelve falso si no existe ninguna variable que referencia a la que se desea olvidar y verdadero en caso contrario.
 estaUsadoDominio dom [] = False
 estaUsadoDominio dom [(x,sym)] = case sym of
                                    Symbol(Just(DominioID dom2),Nothing) -> if dom == (takeStr dom2)

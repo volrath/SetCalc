@@ -1,4 +1,4 @@
-{
+
 {-|
   /Analizador Sintáctico y Tabla de Sí­mbolos para la Calculadora/
 
@@ -249,30 +249,13 @@ constructor :: Either ((Map.Map Token Symbol), String) TupParser -- ^ Tupla que 
 constructor tup1 tup2 = case tup1 of
                           Right (m, a) -> case tup2 of 
                                             Right (n, b) -> case unirMapas m n of
---case Map.null (chequearAsignacion b) of True -> 
-                                                                 Right res -> Right (res, (construirAST a b))
-                                                                 Left err2 -> Left (m,err2)
---                                                       False -> case actualizarMapa m (Map.toList (chequearAsignacion b)) of
---                                                                 Right res -> case unirMapas res n of
---                                                                               Right res2 -> Right (res2, construirAST a b)
---                                                                               Left err2 -> Left (m,err2)
---                                                                 Left (m2,err) -> case unirMapas m2 n of
---                                                                                   Right res2 -> Left (res2, err)
---                                                                                   Left err2 -> Left (m, err ++ "\n" ++ err2)
---                                            Left errs -> Left (m,errs)
+                                                              Right res -> Right (res, (construirAST a b))
+                                                              Left err2 -> Left (m,err2)
                           Left (m, errs) -> case tup2 of
-                                            Right (n, b) -> case unirMapas m n of
--- case Map.null (chequearAsignacion b) of True -> 
-                                                                 Right res -> Left (res, errs)
-                                                                 Left err2 -> Left (m, errs ++ "\n" ++ err2)
---                                                       False -> case actualizarMapa m (Map.toList (chequearAsignacion b)) of
---                                                                 Right res -> case unirMapas res n of
---                                                                               Right res2 -> Left (res2, errs)
---                                                                               Left err2 -> Left (m, errs ++ "\n" ++ err2)
---                                                                 Left (m2,err) -> case unirMapas m2 n of
- --                                                                                  Right res2 -> Left (res2,errs ++ "\n" ++ err)
-  --                                                                                 Left err2 -> Left (m, errs ++ "\n" ++ err2 ++ "\n" ++ err)
-                                            Left err -> Left (m, errs ++ "\n" ++ err)
+                                              Right (n, b) -> case unirMapas m n of
+                                                                Right res -> Left (res, errs)
+                                                                Left err2 -> Left (m, errs ++ "\n" ++ err2)
+                                              Left err -> Left (m, errs ++ "\n" ++ err)
                                          
 
 {-|
@@ -378,46 +361,6 @@ crearConjunto map (k, v) = case  Map.lookup (takeStr k) (transformarMapa map) of
       pos = takePos k
 
 {-|
-  La función @actualizarMapa@ recibe un Mapa de símbolos
-  y una lista de tuplas de entradas que representan 
-  las variables usadas en las asignaciones y en los generadores
-  que se encuentran en las expresiones del programa
-  y mediante el uso de la función actualizarMapa' se
-  genera un error en caso de haberse usado una variable no
-  definida y se devuelve el mapa resultante en caso contrario.
--}
-actualizarMapa :: Map.Map Token Symbol -- ^ Mapa generado por las declaraciones del programa hasta el momento.
-               -> [(Token, Symbol)]  -- ^ Lista de tuplas que fueron usadas en asignaciones y en generadores.
-               -> Either ((Map.Map Token Symbol), String) (Map.Map Token Symbol) -- ^ Devuelve una tupla con el mapa generado hasta el momento con las asignaciones que han sido aceptadas acompañada de un String con los errores en caso de haber errores de contexto, en caso contrario devuelve el mapa resultante de realizar las asignaciones.
-actualizarMapa map1 ((m2key, m2value):[]) = case actualizarMapa' m2key map1 of
-                                             Right res -> Right res
-                                             Left err -> Left (map1,err)
-actualizarMapa map1 ((m2key, m2value):m2s) = case actualizarMapa' m2key map1 of
-                                              Right res -> case actualizarMapa map1 m2s of 
-                                                            Right res1 -> Right (Map.union res res1)
-                                                            Left (m,err) -> Left (Map.union res m, err)
-                                              Left err -> case actualizarMapa map1 m2s of
-                                                           Right res1 -> Left (res1,err)
-                                                           Left (m,err1) -> Left (m,err++err1)
-
-{-|
-  Recibe una variable y un mapa de símbolos y revisa si dicha
-  variable se encuentra definida en el mapa como un conjunto.
-  Si la encuentra devuelve el mapa de símbolos (actualizado
-  para la siguiente entrega), pero si no lo encuentra devuelve
-  un error correspondiente.
--}
-actualizarMapa' :: Token -- ^ Variable a chequear
-                -> Map.Map Token Symbol -- ^ Mapa en donde se buscará la variable
-                -> Either String (Map.Map Token Symbol)-- ^ Si se encontró la variable se devuelve el mapa actualizado. Error en caso contrario.
-actualizarMapa' key map = case Map.lookup (takeStr key) (transformarMapa map) of
-                           Just (Symbol (_, Just con)) -> Right map
-                           Just (Symbol (_, Nothing)) -> Left ("La variable " ++ takeStr key ++ " no esta definida como conjunto y es usada en la linea "++ show(fst(pos)) ++ " y en la columna "++ show(snd(pos)) ++ ". \n")
-                           Nothing -> Left ("La variable " ++ takeStr key ++ " no esta definida como conjunto y es usada en la linea "++ show(fst(pos)) ++ " y en la columna "++ show(snd(pos)) ++ ". \n")
-    where
-      pos = takePos key
-      
-{-|
   Devuelve el dominio asociado a un /Symbol/
 -}
 takeDom :: Symbol -- ^ /Symbol/ sobre el que se quiere su dominio asociado.
@@ -479,52 +422,6 @@ hacerTuplaConj :: Dominio
 hacerTuplaConj dom x = (x, (Symbol (Nothing, Just (Conjunto (SetC.emptySet) (dom)))))
 
 {-|
-  Dado un AST, revisa toda la lista de expresiones que éste contenga y
-  las analiza con chequearAsignacion' para buscar todas las asignaciones
-  dentro de un AST completo.
--}
-chequearAsignacion :: AST -- ^ AST a analizar
-                   -> Map.Map Token Symbol -- ^ Mapa de símbolos resultante
-chequearAsignacion (Secuencia []) = Map.empty
-chequearAsignacion (Expr exp) = chequearAsignacion' exp Map.empty
-chequearAsignacion (Secuencia (x:[])) = chequearAsignacion' x Map.empty
-chequearAsignacion (Secuencia (x:xs)) = Map.union (chequearAsignacion' x Map.empty) (chequearAsignacion (Secuencia xs))
-
-{-|
-  Recorre un árbol de expresiones en búsqueda de asignaciones, cuando
-  las encuentra, va almacenando en un mapa de símbolos auxiliar las
-  variables involucradas en dichas funciones. Este mapa de símbolos
-  resultante sera contrastado al final con el mapa de símbolos resultante
-  del análisis sintáctico del resto del programa.
--}
-chequearAsignacion' :: Expresion -- ^ Árbol de expresiones.
-                    -> Map.Map Token Symbol -- ^ Almacenamiento del mapa de símbolos a generar
-                    -> Map.Map Token Symbol -- ^ Mapa de símbolos resultante
-chequearAsignacion' exp map = case exp of
-                               Union x y -> Map.union (chequearAsignacion' x map) (chequearAsignacion' y map)
-                               Interseccion x y -> Map.union (chequearAsignacion' x map) (chequearAsignacion' y map)
-                               Diferencia x y -> Map.union (chequearAsignacion' x map) (chequearAsignacion' y map)
-                               Cartesiano x y -> Map.union (chequearAsignacion' x map) (chequearAsignacion' y map)
-                               Partes x -> Map.union map (chequearAsignacion' x map)
-                               Complemento x -> Map.union map (chequearAsignacion' x map)
-                               OpExtension (ConjuntoExt set gens fils) -> Map.union map (chequearGenerador gens)
-                               Asignacion var x -> Map.union (Map.insert var (Symbol (Nothing, Just (Conjunto (SetC.emptySet) (Dominio (SetC.emptySet))))) map) (chequearAsignacion' x map)
-                               OpId var -> Map.insert var (Symbol (Nothing, Just (Conjunto (SetC.emptySet) (Dominio (SetC.emptySet))))) map
-                               OpUniverso(UniversoDe var) -> Map.insert var (Symbol (Nothing, Just (Conjunto (SetC.emptySet) (Dominio (SetC.emptySet))))) map
-                               _ -> Map.empty
-
-{-|
-  Crea un mapa de símbolos con las variables usadas en los
-  lados derechos de cada generador de un conjunto por extensión,
-  este mapa luego será constrastado contra el mapa de símbolos
-  original que se ha parseado.
--}
-chequearGenerador :: [Generador] -- ^ Lista de generadores  
-                  -> Map.Map Token Symbol -- ^ Mapa generado con las variables de los lados derechos de los generadores.
-chequearGenerador [] = Map.empty
-chequearGenerador ((Gen x y):xs) = Map.union (Map.singleton y (Symbol (Nothing, Just (Conjunto (SetC.emptySet) (Dominio (SetC.emptySet)))))) (chequearGenerador xs)
-
-{-|
   Verifica que se haya recibido efectivamente un Mapa de símbolos
   y lo devuelve. Si no es así, devuelve únicamente los errores
   encontrados.
@@ -542,7 +439,9 @@ detectarErrores (map,ast) = case map of
 -}
 elUniverso = SetC.fromList (map Elem (map (\c -> [c]) (filter isPrint ['\000'..'\177'])))
 
--- DOCUMENTAR
+{-|
+  Función que genera el conjunto de todos los caracteres imprimibles de Haskell.
+-}
 crearUniverso = Conjunto elUniverso (Dominio elUniverso)
 
 

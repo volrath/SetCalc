@@ -124,11 +124,6 @@ data Generador = Gen String Token -- ^ Generador.
 instance Show Generador where
     show (Gen s t) = (show s) ++ " <- " ++ (show $ takeStr t)
 
--- newtype ListaGeneradores = LG [Generador] deriving (Eq)
--- instance Show ListaGeneradores where
---     show (LG (g:[])) = (show g)
---     show (LG (g:gs)) = (show g) ++ ", " ++ (show gs)
-
 {-|
   TAD /Filtro/:
   Tipo abstracto de datos que modela un filtro de un conjunto definido

@@ -7,7 +7,7 @@ MODULES  = Lexer.x Parser.y
 all:	$(BINARIES) doc
 
 SetCalc:$(SOURCES) $(MODULES)
-	hmake SetCalc -P/usr/lib/ghc-6.8.2/lib/containers-0.1.0.1
+	hmake SetCalc
 
 clean:
 	rm -rf Lex*.hs Parser.hs $(OBJECTS) $(BINARIES) doc
