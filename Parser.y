@@ -131,7 +131,7 @@ ConjuntoCto : '{' '}'                                                { (SetC.emp
 
 Alfa_ran : str                                                       { [Elem (takeStr $1)] }
          | str '..' str                                              { [Rango (head $ takeStr $1) (head $ takeStr $3)] }
-         | Alfa_ran ',' Alfa_ran                                     { $1 ++ [Elem (takeStr $3)] }
+         | Alfa_ran ',' Alfa_ran                                     { $1 ++ $3 }
 
 ListaConj : '{' '}'                                                  { [Cto (SetC.emptySet)] }
           | '{' Alfa_ran '}'                                         { [Cto (SetC.fromList $2)] }
@@ -175,12 +175,12 @@ ConjuntoId : id                                                      { (SetC.fro
            | ListaArrAlfaId                                          { (SetC.fromList $1) }
            | ListaConjAlfaId                                         { (SetC.fromList $1) }
 
-ListaArrAlfaId : '['Lista_id ']'                                     { [Lista $2] }
+ListaArrAlfaId : '['Lista_id ']'                                     { [Lista (map Ident $2)] }
                | ListaArrAlfaId ',' ListaArrAlfaId                   { doList $1 $3 }
                | '['ListaArrAlfaId ']'                               { [Lista $2] }
                | '['ListaConjAlfaId ']'                              { [Lista $2] }
 
-ListaConjAlfaId : '{' Lista_id '}'                                   { [Cto (SetC.fromList $2)] }
+ListaConjAlfaId : '{' Lista_id '}'                                   { [Cto (SetC.fromList (map Ident $2))] }
                 | ListaConjAlfaId ',' ListaConjAlfaId                { doCto $1 $3 }
                 | '{' ListaConjAlfaId '}'                            { [Cto (SetC.fromList $2)] }
                 | '{' ListaArrAlfaId '}'                             { [Cto (SetC.fromList $2)] }
