@@ -66,9 +66,9 @@ data Inst = Estado -- ^ La instrucción "estado"
           deriving (Eq)
 instance Show Inst where
     show Estado = "estado:"
-    show OlvidarTodo = "olvidadas todas las variables."
+    show OlvidarTodo = "olvidadas todas las variables.\n"
     show (Olvidar toks) = "olvidadas las variables: " ++ (commaJoin toks)
-        where commaJoin (t: []) = takeStr t
+        where commaJoin (t: []) = (takeStr t) ++ "\n"
               commaJoin (t:ts)  = (takeStr t) ++ ", " ++ (commaJoin ts)
     show Fin = "Saliendo de SetCalc."
 

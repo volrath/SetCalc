@@ -151,26 +151,46 @@ revisarErrores :: (Map.Map String Symbol)
                -> AST
                -> Either String TupParser
 revisarErrores map map' intocable = case map' of
-                            Right (map1,Secuencia (x:[])) -> case x of
-                                                             Instruccion (Olvidar ids) -> case olvidarVariables ids map of 
-                                                                                          Right map2 -> Right (map2,intocable)
-                                                                                          Left err1 -> Left err1
-                                                             _ -> case revisarErrores' (map) (Right (map1,Secuencia [x])) of
-                                                                    Right (map3,ast) -> Right (map3,intocable)
-                                                                    Left (map3,err) -> Left err
-                            Right (map1,Secuencia (x:xs)) -> case x of
-                                                               Instruccion (Olvidar ids) -> case olvidarVariables ids map of
-                                                                                            Right map2 -> revisarErrores map2 (Right (map1,Secuencia xs)) intocable
-                                                                                            Left err1 -> revisarErrores map (Left((map1,Secuencia xs),err1)) intocable
-                                                               _ -> case revisarErrores' (map) (Right (map1,Secuencia [x])) of
-                                                                      Right (mapb,a) -> revisarErrores mapb (Right (Map.empty,Secuencia xs)) intocable
-                                                                      Left (map3,err) -> revisarErrores map (Left ((map1,Secuencia xs),err)) intocable
+                            Right (map1,Secuencia (x:[])) -> case revisarErrores' (map) (Right (map1,Secuencia [x])) of
+                                                                    Right (map3,ast) -> case x of
+                                                                                          Instruccion (Olvidar ids) -> case olvidarVariables ids map3 of 
+                                                                                                                         Right map2 -> Right (map2,intocable)
+                                                                                                                         Left err1 -> Left err1
+                                                                                          _ -> Right (map3,intocable)
+                                                                    Left (map3,err) -> case x of
+                                                                                          Instruccion (Olvidar ids) -> case olvidarVariables ids map of 
+                                                                                                                         Right map2 -> Left err
+                                                                                                                         Left err1 -> Left (err++"\n"++err1)
+                                                                                          _ -> Left err
+                            Right (map1,Secuencia (x:xs)) -> case revisarErrores' (map) (Right (map1,Secuencia [x])) of
+                                                               Right (mapb,a) -> case x of 
+                                                                                   Instruccion (Olvidar ids) -> case olvidarVariables ids mapb of 
+                                                                                                                  Right map2 -> revisarErrores map2 (Right (Map.empty,Secuencia xs)) intocable
+                                                                                                                  Left err -> revisarErrores mapb (Left ((Map.empty,Secuencia xs),err)) intocable
+                                                                                   _ -> revisarErrores mapb (Right (Map.empty, Secuencia xs)) intocable
+                                                               Left (map3,err) -> case x of
+                                                                                    Instruccion (Olvidar ids) -> case olvidarVariables ids map of
+                                                                                                                   Right map2 -> revisarErrores map2 (Left ((map1,Secuencia xs),err)) intocable
+                                                                                                                   Left err2 -> revisarErrores map3 (Left ((map1,Secuencia xs),err++"\n"++err2)) intocable
+                                                                                    _ -> revisarErrores map (Left ((map1,Secuencia xs),err)) intocable
                             Right (map1,Secuencia []) -> case revisarErrores' (map) (Right (map1,Secuencia [])) of 
                                                            Right (map3,ast) -> Right (map3,intocable)
                                                            Left (map3,err) -> Left err
-                            Left ((maperr,asterr), err) -> case revisarErrores' map (Left ((maperr,asterr),err)) of
+                            Left ((maperr,asterr@(Secuencia [x])), err) -> case revisarErrores' map (Left ((maperr,asterr),err)) of
                                                              Right _ -> error $ "Error 0x123ABCF2"
-                                                             Left (map1,err2) -> Left (err2)
+                                                             Left (map1,err2) -> case x of
+                                                                                   Instruccion (Olvidar ids) -> case olvidarVariables ids map of
+                                                                                                                  Right map2 -> Left err2
+                                                                                                                  Left err3 -> Left (err2++"\n"++err3)
+                                                                                   _ -> Left err2
+                            Left ((maperr,asterr@(Secuencia (x:xs))), err) -> case revisarErrores' map (Left ((maperr,asterr),err)) of
+                                                             Right _ -> error $ "Error 0x123ABCF2"
+                                                             Left (map1,err2) -> case x of
+                                                                                   Instruccion (Olvidar ids) -> case olvidarVariables ids map of
+                                                                                                                  Right map2 -> revisarErrores map2 (Left((map1, Secuencia xs),err2)) intocable
+                                                                                                                  Left err3 -> revisarErrores map (Left((map1, Secuencia xs),err2++"\n"++err3)) intocable
+                                                                                   _ -> revisarErrores map (Left((map1, Secuencia xs),err2)) intocable 
+
                                             
 revisarErrores' :: (Map.Map String Symbol) -- ^ Tupla que puede ser TupParser en caso de no haber errores o en caso de haber errores de contexto,una tupla que contiene el Data.Map generado hasta el momento y un string con todos los errores concatenados.
             -> Either (TupParser,String) TupParser -- ^ Es TupParser en caso de que la expresion o declaración analizada no tenga errores de contexto o un String en caso contrario.

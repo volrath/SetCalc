@@ -1,6 +1,2 @@
-Revisar tipos.............................
 Conjuntos por intencion..........................
-Revisar dominio al definir conjuntos
-Instrucciones especiales: estado, olvidar
 Filtros, Funciones predefinidas
-Agregar que el programa termine con Fin.
