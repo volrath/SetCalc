@@ -76,8 +76,8 @@ data Expresion = Union Expresion Expresion -- ^ Unión de dos conjuntos
                | OpConj Conjunto -- ^ Conjunto.
 	       | OpId Token -- ^ Identificador de algún conjunto.
                | Asignacion Token Expresion -- ^ Asignación de algún conjunto a una variable
-                 deriving (Eq,Show)
-{- instance Show Expresion where
+                 deriving (Eq)
+instance Show Expresion where
     show (Union e1 e2) = (show e1) ++ " + " ++ (show e2)
     show (Interseccion e1 e2) = (show e1) ++ " * " ++ (show e2)
     show (Diferencia e1 e2) = (show e1) ++ " - " ++ (show e2)
@@ -90,7 +90,7 @@ data Expresion = Union Expresion Expresion -- ^ Unión de dos conjuntos
     show (OpConj c) = (show c)
     show (OpId t) = (show $ takeStr t)
     show (Asignacion t e) = (show $ takeStr t) ++ " := " ++ (show e)
--}
+
 {-|
   TAD /Ext/:
   Tipo abstracto de datos que modela un conjunto definido por extensión

@@ -64,6 +64,7 @@ module Interpreter (
   interpreter,
   compararTipos,
   calcularExpresion,
+  chequeoEstructural,
 ) where
 
 import System.IO
@@ -82,7 +83,9 @@ type TupParser = (SymTable, AST)
 
 interpreter :: TupParser
             -> IO()
-interpreter (map, ast) = print $ printOperations map ast
+interpreter tp@(map, ast) = case chequeoEstructural tp of
+                              Nothing -> print $ printOperations map ast
+                              Just errs -> error $ errs
 
 printOperations :: SymTable
                 -> AST
@@ -91,14 +94,6 @@ printOperations map (Expr e) = (show e) ++ " ==> " ++ (show $ calcularExpresion 
 printOperations map (Secuencia []) = "\n"
 printOperations map (Secuencia (e:[])) = printOperations map (Expr e)
 printOperations map (Secuencia (e:es)) = (printOperations map (Expr e)) ++ (printOperations map (Secuencia es))
-
-
-
-
-
-prueba :: TupParser -> Maybe String
-prueba (s, Secuencia [OpConj (Conjunto sc d)]) = verificarTipoConjunto sc sc
-                  
 
 
 
@@ -121,51 +116,102 @@ calcularExpresion map (Asignacion t e) = calcularExpresion map e
 
 
 
+-- OJO: recordar que chequeoEstructural se llama asi:
+-- chequeoEstructural $ chequear mapaActual $ lexer line
+-- sabiendo que chequear recibe el mapa actual, corre el parser
+-- a la nueva linea, y si todo esta bien, entonces devuelve un TupParser
+-- con el Mapa de las declaraciones viejas (del exActual) con las
+-- declaraciones de la nueva linea y TENGO KE PEDIR que el AST de
+-- ese TupParser resultado sea el AST de \'UNICAMENTE la nueva linea.
+chequeoEstructural :: TupParser -- ^ El TupParser que tiene el mapa 
+                   -> Maybe String -- ^ Errores... o no?
+chequeoEstructural (mapa, (Secuencia exprs)) = chequeoEstructural' mapa exprs
 
 
--- chequeoEstructural :: SymTable -- ^ El mapa viejo
---                    -> TupParser -- ^ El TupParser de la linea nueva
---                    -> Either (String, SymTable) SetTable -- ^ El mapa de la nueva linea con los valores de los conjuntos colocados con las nuevas asignaciones
--- chequeoEstructural actual (linea,(Secuencia [])) = Right (Map.empty)
--- chequeoEstructural actual (linea,s@(Secuencia (e:[]))) = case chequeoEstructural' (Map.unionWith (\k1 k2 -> k2) actual linea) e of
---                                                     Right nmap -> Right (sym2setTable nmap)
---                                                     Left errs -> Left errs
--- chequeoEstructural actual (linea,s@(Secuencia (e:es))) = case chequeoEstructural' (Map.unionWith (\k1 k2 -> k2) actual linea) e of
---                                                   Right nmap -> case chequeoEstructural (Map.unionWith (\k1 k2 -> k2) actual nmap) (linea,(Secuencia es)) of
---                                                                   Right nmap2 -> Right nmap2
---                                                                   Left errs -> Left errs
---                                                   Left errs -> Left errs
+-- Verifica los tipos de datos de todos los conjuntos escritos
+-- literalmente en la expresion
+chequeoEstructural' :: SymTable
+                    -> [Expresion]
+                    -> Maybe String
+chequeoEstructural' mapa [] = Nothing
+chequeoEstructural' mapa (e:es) = case verificarTipos e of
+                                    Nothing -> case chequeoOperador mapa e of
+                                                 Nothing -> chequeoEstructural' mapa es
+                                                 Just errOp -> case chequeoEstructural' mapa es of
+                                                                 Nothing -> Just errOp
+                                                                 Just errs -> Just $ errOp ++ errs
+                                    Just errTipoConj -> case chequeoEstructural' mapa es of
+                                                          Nothing -> Just errTipoConj
+                                                          Just errs -> Just $ errTipoConj ++ errs
 
 
+-- Solo revisa si todos los conjuntos de una expresion estan bien
+-- definidos, no revisa las operaciones ni sus operandos
+verificarTipos :: Expresion
+               -> Maybe String
+verificarTipos exp@(Union e1 e2) = verificarTipos' exp e1 e2
+verificarTipos exp@(Interseccion e1 e2) = verificarTipos' exp e1 e2
+verificarTipos exp@(Diferencia e1 e2) = verificarTipos' exp e1 e2
+verificarTipos exp@(Cartesiano e1 e2) = verificarTipos' exp e1 e2
+verificarTipos exp@(Complemento e) = case verificarTipos e of
+                                       Nothing -> Nothing
+                                       Just errs -> Just $ mostrarError exp e errs
+verificarTipos exp@(Partes e) = case verificarTipos e of
+                                  Nothing -> Nothing
+                                  Just errs -> Just $ mostrarError exp e errs
+verificarTipos exp@(OpUniverso uni) = Nothing -- ^ Arreglar esto
+verificarTipos exp@(OpExtension ext) = Nothing -- ^ Arreglar esto
+verificarTipos exp@(OpConj c) = verificarTipoConjunto set set
+    where set = conjuntoSetC c
+verificarTipos exp@(OpId t) = Nothing
+verificarTipos exp@(Asignacion var e) = case verificarTipos e of
+                                          Nothing -> Nothing
+                                          Just errs -> Just $ mostrarError exp e errs
+
+verificarTipos' :: Expresion 
+                -> Expresion
+                -> Expresion
+                -> Maybe String
+verificarTipos' orig e1 e2 = case verificarTipos e1 of
+                                     Nothing -> verificarTipos e2
+                                     Just errs1 -> case verificarTipos e2 of
+                                                     Nothing -> Just $ mostrarError orig e1 errs1
+                                                     Just errs2 -> Just $ (mostrarError orig e1 errs1) ++ errs2
+
+mostrarError :: Expresion -> Expresion -> String -> String
+mostrarError orig op err = "\nError en el argumento de " ++ (show orig) ++ " llamado: " ++ (show op) ++ " => " ++ err ++ "\n"
 
 
--- chequeoEstructural' :: SymTable -- ^ El mapa contra el que se realiza el chequeo
---                     -> Expresion -- ^ Expresion a chequear
---                     -> Either (String, SymTable) SymTable -- ^ El mapa resultado despues de evaluar la expresion.
--- chequeoEstructural' m (Union e1 e2)
---     | compararTipos
---       (SetC.takeType $ calcularExpresion m e1)
---       (SetC.takeType $ calcularExpresion m e2) = Right m
---     | otherwise = Left ("Error de tipos en union", Map.empty)
--- chequeoEstructural' m (Interseccion e1 e2)
---     | compararTipos 
---       (SetC.takeType $ calcularExpresion m e1)
---       (SetC.takeType $ calcularExpresion m e2) = Right m
---     | otherwise = Left ("Error de tipos interseccion", Map.empty)
--- chequeoEstructural' m (Diferencia e1 e2)
---     | compararTipos 
---       (SetC.takeType $ calcularExpresion m e1)
---       (SetC.takeType $ calcularExpresion m e2) = Right m
---     | otherwise = Left ("Error de tipos en diferencia", Map.empty)
--- chequeoEstructural' m (Cartesiano e1 e2)
---     | compararTipos 
---       (SetC.takeType $ calcularExpresion m e1)
---       (SetC.takeType $ calcularExpresion m e2) = Right m
---     | otherwise = Left ("Error de tipos en cartesiano", Map.empty)
--- chequeoEstructural' m (Asignacion var e) = case chequeoEstructural' m e of
---                                              Right m -> Right (actualizarConjS ((takeStr var),(calcularExpresion m e)) m)
---                                              Left tuplaerror -> Left tuplaerror
--- chequeoEstructural' m _ = Right m
+chequeoOperador :: SymTable
+                -> Expresion
+                -> Maybe String
+chequeoOperador mapa exp@(Union e1 e2) = chequeoOperador' mapa exp e1 e2
+chequeoOperador mapa exp@(Interseccion e1 e2) = chequeoOperador' mapa exp e1 e2
+chequeoOperador mapa exp@(Diferencia e1 e2) = chequeoOperador' mapa exp e1 e2
+--chequeoOperador mapa (Cartesiano e1 e2) = chequeoOperador' mapa e1 e2
+chequeoOperador mapa (Asignacion var e) = chequeoOperador mapa e
+chequeoOperador _ _ = Nothing
+
+
+chequeoOperador' :: SymTable
+                 -> Expresion
+                 -> Expresion
+                 -> Expresion
+                 -> Maybe String
+chequeoOperador' mapa orig e1 e2 = case SetC.takeType $ calcularExpresion mapa e1 of
+                                     Nothing -> case SetC.takeType $ calcularExpresion mapa e2 of
+                                                  Nothing -> Nothing
+                                                  Just l -> case sonElementos l of
+                                                              True -> Nothing
+                                                              False -> Just $ "Error en la operacion " ++ (show orig) ++ ":\n    Tipos incompatibles.\n\n"
+                                     Just l1@(e1:es1) -> case SetC.takeType $ calcularExpresion mapa e2 of
+                                                           Nothing -> case sonElementos l1 of
+                                                                        True -> Nothing
+                                                                        False -> Just $ "Error en la operacion " ++ (show orig) ++ ":\n    Tipos incompatibles.\n\n"
+                                                           Just (e2:es2) -> case compararTipos e1 e2 of
+                                                                              True -> Nothing
+                                                                              False -> Just $ "Error en la operacion " ++ (show orig) ++ ":\n    Tipos incompatibles.\n\n"
+
 
 
 
@@ -181,10 +227,10 @@ verificarTipoConjunto set intocable = case SetC.takeType set of
                                                          _ -> Nothing
                                         Just elem@(x1:(x2:[])) -> case compararTipos x1 x2 of
                                                                     True  -> Nothing
-                                                                    False -> Just $ "El tipo de datos del elemento " ++ (show intocable) ++ " esta mal definido\n"
+                                                                    False -> Just $ "\n  El tipo de datos del elemento " ++ (show intocable) ++ " esta mal definido"
                                         Just elem@(x1:(x2:xs)) -> case compararTipos x1 x2 of
                                                                     True  -> verificarTipoConjunto (SetC.fromList (x2:xs)) intocable
-                                                                    False -> Just $ "El tipo de datos del elemento " ++ (show intocable) ++ " esta mal definido\n"
+                                                                    False -> Just $ "\n  El tipo de datos del elemento " ++ (show intocable) ++ " esta mal definido"
 
 
 {-
