@@ -90,7 +90,7 @@ Prog   : Decl                                      { ([$1], []) }
 
 Decl  : Lista_id es dominio Dominio                { ($1, $4) }
       | Lista_id tiene dominio Dominio             { ($1, $4) }
-      | Lista_id tiene dominio id                  { ($1, $4) }
+      | Lista_id tiene dominio id                  { ($1, Dominio [Ident (Var (takeStr $4))]) }
 
 Dominio : ConjuntoDom                              { Dominio $1 }
         | universal                                { Dominio [] }
@@ -121,9 +121,9 @@ Conjunto : '{' '}'                                 { Conjunto [] }
          | '{' ListaConj '}'                       { Conjunto $2 }
          | '{' ListaArreglo '}'                    { Conjunto $2 }
 
-Alfa_ran : str                                     { [Elem (takeStr $1)] }
+Alfa_ran : str                                     { [Elemento (Elem (takeStr $1))] }
          | str '..' str                            { [Rango (head $ takeStr $1) (head $ takeStr $3)] }
-         | Alfa_ran ',' str                        { $1 ++ [Elem (takeStr $3)] }
+         | Alfa_ran ',' str                        { $1 ++ [Elemento (Elem (takeStr $3))] }
 
 ListaConj : '{' '}'                                { [] }
           | '{' Alfa_ran '}'                       { $2 }
@@ -136,9 +136,9 @@ ListaArreglo : '[' ']'                             { [] }
              | '[' ListaArreglo ']'                { $2 }
 
 Expr     : Asig                                    { $1 }
-         | Func                                    { $1 }
-         | Instr                                   { $1 }
-         | OpConj                                  { $1 }
+         | Func                                    { Funcion $1 }
+         | Instr                                   { Instruccion $1 }
+         | OpConj                                  { Operacion $1 }
 
 Asig     : id ':=' OpConj                          { Asignacion (Var (takeStr $1)) $3 }
 
@@ -151,9 +151,9 @@ Instr    : estado                                  { Estado }
          | olvidar Lista_id                        { Olvidar $2 }
          | fin                                     { Fin }
 
-OpConj   : Conjunto                                { $1 }
-         | Universo                                { $1 }
-         | Extension                               { $1 }
+OpConj   : Conjunto                                { Conj $1 }
+         | Universo                                { Universo $1 }
+         | Extension                               { Extension $1 }
          | OpConj '+' OpConj                       { Union $1 $3 }
          | OpConj '*' OpConj                       { Interseccion $1 $3 }
          | OpConj '-' OpConj                       { Diferencia $1 $3}

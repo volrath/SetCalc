@@ -10,32 +10,37 @@ module Abstract (
         Generador(..),
         Filtro(..),
         Univ(..),
-        Factor(..),
         AlfaRan(..),
         Elemento(..)
 ) where
 
 data AST = Expresion
          | Secuencia AST Expresion
+         deriving (Eq,Show)
 
-data Symbol = Conjunto [Elemento]
+data Symbol = Conjunto [AlfaRan]
             | Dominio [Elemento]
+            deriving (Eq,Show)
 
 data Var = Var String
+         deriving (Eq,Show)
 
 data Expresion = Asignacion Var Op
                | Funcion Funcion
                | Instruccion Inst
                | Operacion Op
+               deriving (Eq,Show)
 
 data Funcion = Miembro Elemento Symbol
              | Vacio Op
              | SubConjunto Symbol Symbol
+             deriving (Eq,Show)
 
 data Inst = Estado
           | OlvidarTodo
           | Olvidar [Var]
           | Fin
+          deriving (Eq,Show)
 
 data Op = Union Op Op
         | Interseccion Op Op
@@ -45,11 +50,16 @@ data Op = Union Op Op
         | Partes Op
         | Universo Univ
         | Extension Ext
-        | Factor Factor
+        | Conj Symbol
+	| Id Var
+        deriving (Eq,Show)
 
 data Ext = ConjuntoExt [Var] [Generador] [Filtro]
+         deriving (Eq,Show)
 
 data Generador = Gen Var Var
+               deriving (Eq,Show)
+
 data Filtro = FilIgual Elemento Elemento
             | FilMenor Elemento Elemento
             | FilMayor Elemento Elemento
@@ -58,16 +68,16 @@ data Filtro = FilIgual Elemento Elemento
             | FilDigito Elemento
             | FilSimbolo Elemento
             | FilNot Filtro
+            deriving (Eq,Show)
 
 data Univ = UniversoT
           | UniversoDe Var
-
-data Factor = Op Op
-            | Symbol
-            | Id Var
+          deriving (Eq,Show)
 
 data AlfaRan = Rango Char Char
-             | Elemento
+             | Elemento Elemento
+             deriving (Eq,Show)
 
 data Elemento = Elem String
               | Ident Var
+              deriving (Eq,Show)
