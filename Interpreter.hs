@@ -1,56 +1,4 @@
 {-
-  Los pasos son:
-  Para el compilador:
-  1. Parser, que devuelve un TupParser
-  2. Hacer chequeoEstatico de TupParser
-  
-  Para el interpretador:
-  1. Parser a una linea, devuelve el TupParser inocente de esa linea
-  2. chequeoEstatico de (datamap actualizado union datamap de la linea entrante) y el
-  ast de la linea entrante.
-  3. Case del resultado de chequeoEstatico. Si dio un Left String entonces error a ese
-  string, si dio Right un Mapa entonces ahora datamap actualizado es igual a ese mapa.
-  4. repito..
-
-Preguntas:
-1. Las instrucciones especiales entran dentro de los que son los AST?
-si no entran, entonces como hago para saber que fueron llamadas si no 
-tengo como sacarlas de la funcion parser, debido a su firma
-
-2. Basado en el primer punto 1.2 de la segunda pagina del enunciado y el primer punto de
-la entrega de implementacion, El modulo interpreter debe tener todo el codigo para
-realizar los chequeos dinamicos del lenguaje, entre los cuales esta que no se puede
-asignar un valor incompatible a una variable, Entonces esto quiere decir que el mapa
-actual no se debe actualizar con valores incompatibles, pero no puedo realizar
-la actualizacion del mapa en el modulo Interpreter porque la unica funcion exportada
-es interpreter cuya firma devuelve un IO, por lo tanto, no puedo devolver un
-mapa actualizado con cualquier cosa que haya necesitado actualizarse (como las asignaciones)
-despues de un chequeo de contexto dinamico
-(Lee de nuevo el primer punto de Entrega de Implantacion, vas a revivir nuevas dudas)
--}
-
-{-
--- Antes de cualquier tipo de chequeo dinamico hay que pasar por el estatico, el cual
-consta de lo ya hecho, y ademas esta:
-1. redefinir un dominio: se hace a nivel de parser, para capturar los dominios redefinidos
-en una misma linea y tambien se hace a nivel de setcalc para capturar los dominios
-redefinidos en lineas pasadas.
-2. errores de tipos de datos en las operaciones: Esto es modificar chequearAsignacion
-o crear una funcion similar, que recorra el AST en secuencias de expresiones y para
-cada expreesion se fija en las operaciones binarias y compara los tipos de datos de las
-dos expresiones de interes. Si todo va bien, entonces -------- y si va mal acumulo el
-error y sigo.
-
--- El chequeo de tipos de una variable y una asignacion consta de lo siguiente:
-1. que el resultado de la asignacion tenga un tipo con sentido, y no mixed up, algo
-como { 1, 2, 3 } o { {1},{2},{3} } pero no {1, {2}, 3}. [ESTATICO, VA COMO PUNTO
-1.5 EN LOS CHEQUEOS DE ARRIBA]
-2. que los elementos del conjunto de asignacion sean estructuralmente parecidos al
-dominio de la variable, es decir, que conjunto-asignacion sea un subset de
-dominio-variable. [DINAMICO]
--}
-
-{-
 Recibe un mapa original y un ast, en el ast empieza a buscar asignaciones y cuando
 las consigue, mete la variable del lado izquierdo como key de un nuevo mapa y guarda
 en el lado derecho lo que devuelve calcularExpresion de dicha asignacion. Luego
@@ -187,17 +135,8 @@ calcularExpresion map1 (OpExtension ext) = evalExtension map1 ext
 calcularExpresion map1 (OpConj (Conjunto c d)) = c
 calcularExpresion map1 (OpId t) = conjuntoSetC $ takeConj (map1 Map.! (takeStr t))
 calcularExpresion map1 (Asignacion t e) = calcularExpresion map1 e
-calcularExpresion map1 (Instruccion Estado) = evalEstado map1
+calcularExpresion map1 _  = SetC.emptySet
 
-evalEstado map1 = SetC.emptySet
-
--- OJO: recordar que chequeoEstructural se llama asi:
--- chequeoEstructural $ chequear mapaActual $ lexer line
--- sabiendo que chequear recibe el mapa actual, corre el parser
--- a la nueva linea, y si todo esta bien, entonces devuelve un TupParser
--- con el Mapa de las declaraciones viejas (del exActual) con las
--- declaraciones de la nueva linea y TENGO KE PEDIR que el AST de
--- ese TupParser resultado sea el AST de \'UNICAMENTE la nueva linea.
 chequeoEstructural :: TupParser -- ^ El TupParser que tiene el mapa 
                    -> Maybe String -- ^ Errores... o no?
 chequeoEstructural (mapa, (Secuencia exprs)) = chequeoEstructural' mapa exprs

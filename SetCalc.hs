@@ -76,8 +76,16 @@ promptAndGet = do
     putStr "SetCalc> "
     >> getLine
 
-loop :: Map.Map String Symbol 
-     -> IO()
+{-|
+  loop
+  
+  Función que realiza el ciclo que permite la lectura de consola y
+  realizar la interpretación de cada comando introducido y además poder
+  realizar la recuperación de los errores.
+-}
+
+loop :: SymTable -- ^ Mapa que se lleva generado de los anteriores comandos introducidos por el usuario.
+     -> IO() -- ^ Respuesta generada por el intepretador al analizar la línea introducida.
 loop mapaActual = do
   line <- promptAndGet
   C.catch (loop' mapaActual line) fail
@@ -85,7 +93,16 @@ loop mapaActual = do
                     printOrKill e
                     loop mapaActual
 
-loop' :: SymTable -> String -> IO()
+{-|
+  loop'
+
+  Función auxiliar a loop que permite realizar el ciclo de línea de comandos
+  para el interpretador de SetCalc.
+-}
+
+loop' :: SymTable -- ^ Mapa que se lleva generado de los anteriores comandos introducidos por el usuario.
+      -> String -- ^
+      -> IO()   -- ^
 loop' mapaActual linea = do
   (errs, st) <- return $ chequeoDinamico tp
   interpreter (st, snd tp)
