@@ -1,6 +1,5 @@
 {-# OPTIONS -cpp #-}
 {-# LINE 1 "Lexer.x" #-}
-
 {-|
   Primera aproximacion del Lexer.
 -}
@@ -15,7 +14,7 @@ import System.Exit
 
 #if __GLASGOW_HASKELL__ >= 603
 #include "ghcconfig.h"
-#elif defined(__GLASGOW_HASKELL__)
+#else
 #include "config.h"
 #endif
 #if __GLASGOW_HASKELL__ >= 503
@@ -26,117 +25,6 @@ import Data.Array.Base (unsafeAt)
 import Array
 import Char (ord)
 #endif
-{-# LINE 1 "templates/wrappers.hs" #-}
-{-# LINE 1 "templates/wrappers.hs" #-}
-{-# LINE 1 "<built-in>" #-}
-{-# LINE 1 "<command-line>" #-}
-{-# LINE 1 "templates/wrappers.hs" #-}
--- -----------------------------------------------------------------------------
--- Alex wrapper code.
---
--- This code is in the PUBLIC DOMAIN; you may copy it freely and use
--- it for any purpose whatsoever.
-
-
-
-
-
-
-
--- -----------------------------------------------------------------------------
--- The input type
-
-
-type AlexInput = (AlexPosn, 	-- current position,
-		  Char,		-- previous char
-		  String)	-- current input string
-
-alexInputPrevChar :: AlexInput -> Char
-alexInputPrevChar (p,c,s) = c
-
-alexGetChar :: AlexInput -> Maybe (Char,AlexInput)
-alexGetChar (p,c,[]) = Nothing
-alexGetChar (p,_,(c:s))  = let p' = alexMove p c in p' `seq`
-				Just (c, (p', c, s))
-
-
-{-# LINE 45 "templates/wrappers.hs" #-}
-
--- -----------------------------------------------------------------------------
--- Token positions
-
--- `Posn' records the location of a token in the input text.  It has three
--- fields: the address (number of chacaters preceding the token), line number
--- and column of a token within the file. `start_pos' gives the position of the
--- start of the file and `eof_pos' a standard encoding for the end of file.
--- `move_pos' calculates the new position after traversing a given character,
--- assuming the usual eight character tab stops.
-
-
-data AlexPosn = AlexPn !Int !Int !Int
-	deriving (Eq,Show)
-
-alexStartPos :: AlexPosn
-alexStartPos = AlexPn 0 1 1
-
-alexMove :: AlexPosn -> Char -> AlexPosn
-alexMove (AlexPn a l c) '\t' = AlexPn (a+1)  l     (((c+7) `div` 8)*8+1)
-alexMove (AlexPn a l c) '\n' = AlexPn (a+1) (l+1)   1
-alexMove (AlexPn a l c) _    = AlexPn (a+1)  l     (c+1)
-
-
--- -----------------------------------------------------------------------------
--- Default monad
-
-{-# LINE 150 "templates/wrappers.hs" #-}
-
-
--- -----------------------------------------------------------------------------
--- Monad (with ByteString input)
-
-{-# LINE 233 "templates/wrappers.hs" #-}
-
-
--- -----------------------------------------------------------------------------
--- Basic wrapper
-
-{-# LINE 255 "templates/wrappers.hs" #-}
-
-
--- -----------------------------------------------------------------------------
--- Basic wrapper, ByteString version
-
-{-# LINE 277 "templates/wrappers.hs" #-}
-
-
--- -----------------------------------------------------------------------------
--- Posn wrapper
-
--- Adds text positions to the basic model.
-
-
---alexScanTokens :: String -> [token]
-alexScanTokens str = go (alexStartPos,'\n',str)
-  where go inp@(pos,_,str) =
-	  case alexScan inp 0 of
-		AlexEOF -> []
-		AlexError _ -> error "lexical error"
-		AlexSkip  inp' len     -> go inp'
-		AlexToken inp' len act -> act pos (take len str) : go inp'
-
-
-
--- -----------------------------------------------------------------------------
--- Posn wrapper, ByteString version
-
-{-# LINE 309 "templates/wrappers.hs" #-}
-
-
--- -----------------------------------------------------------------------------
--- GScan wrapper
-
--- For compatibility with previous versions of Alex, and because we can.
-
 alex_base :: Array Int Int
 alex_base = listArray (0,134) [-8,-2,7,-4,2,-32,0,11,12,4,5,71,146,221,296,371,446,521,596,671,746,821,896,971,1046,1121,1196,1271,1346,1421,1496,1571,1646,1721,1796,1871,1946,2021,2096,2171,2246,2321,2396,2471,0,0,0,0,0,0,0,-23,0,0,0,-18,0,-33,0,0,0,0,0,2546,2621,2696,2771,2846,2921,2996,3071,3146,3221,3296,3371,3446,3521,3596,3671,3746,3821,3896,3971,4046,4121,4196,4271,4346,4421,4496,4571,4646,4721,4796,4871,4946,5021,5096,5171,5246,5321,5396,5471,0,-21,0,5546,5621,5696,5771,5846,5921,5996,6071,6146,6221,6296,6371,6446,6521,6596,6671,6746,6821,6896,6971,7046,7121,7196,7271,7346,7421,7496,7571,7646]
 
@@ -151,7 +39,6 @@ alex_deflt = listArray (0,134) [-1,-1,-1,4,4,-1,-1,8,8,10,10,-1,-1,-1,-1,-1,-1,-
 
 alex_accept = listArray (0::Int,134) [[],[],[(AlexAccSkip)],[(AlexAccSkip)],[(AlexAccSkip)],[(AlexAcc (alex_action_24))],[(AlexAcc (alex_action_2))],[],[],[],[],[(AlexAcc (alex_action_3))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_4))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_5))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_6))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_7))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_8))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_9))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_10))],[(AlexAcc (alex_action_11))],[(AlexAcc (alex_action_12))],[(AlexAcc (alex_action_13))],[(AlexAcc (alex_action_14))],[(AlexAcc (alex_action_15))],[(AlexAcc (alex_action_16))],[(AlexAcc (alex_action_17))],[(AlexAcc (alex_action_18))],[(AlexAcc (alex_action_19))],[(AlexAcc (alex_action_20))],[(AlexAcc (alex_action_36))],[(AlexAcc (alex_action_21))],[],[(AlexAcc (alex_action_22))],[(AlexAcc (alex_action_23))],[(AlexAcc (alex_action_25))],[(AlexAcc (alex_action_26))],[(AlexAcc (alex_action_27))],[(AlexAcc (alex_action_28))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_29))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_30))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_31))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_32))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_33))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_34))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_35))],[],[(AlexAcc (alex_action_37))],[(AlexAcc (alex_action_38))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_39))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_40))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_41))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_42))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))]]
 {-# LINE 76 "Lexer.x" #-}
-
 {-|
   El tipo de datos @Token@ que contiene los /tokens/
   devueltos por el analizador lexicográfico generado.
@@ -274,53 +161,52 @@ getShortPosn :: AlexPosn -- ^ AlexInput
 getShortPosn (AlexPn o l c) = (l, c)
 
 
-alex_action_2 =  \p s -> TkStr (getShortPosn p) (tail $ init s) 
-alex_action_3 =  \p s -> TkEs (getShortPosn p) 
-alex_action_4 =  \p s -> TkDe (getShortPosn p) 
-alex_action_5 =  \p s -> TkTiene (getShortPosn p) 
-alex_action_6 =  \p s -> TkDominio (getShortPosn p) 
-alex_action_7 =  \p s -> TkConjunto (getShortPosn p) 
-alex_action_8 =  \p s -> TkUniverso (getShortPosn p) 
-alex_action_9 =  \p s -> TkUniversal (getShortPosn p) 
-alex_action_10 =  \p s -> TkALlave (getShortPosn p) 
-alex_action_11 =  \p s -> TkCLlave (getShortPosn p) 
-alex_action_12 =  \p s -> TkACorchete (getShortPosn p) 
-alex_action_13 =  \p s -> TkCCorchete (getShortPosn p) 
-alex_action_14 =  \p s -> TkAParentesis (getShortPosn p) 
-alex_action_15 =  \p s -> TkCParentesis (getShortPosn p) 
-alex_action_16 =  \p s -> TkComa (getShortPosn p) 
-alex_action_17 =  \p s -> TkPunto (getShortPosn p) 
-alex_action_18 =  \p s -> TkPuntoPunto (getShortPosn p) 
-alex_action_19 =  \p s -> TkBarra (getShortPosn p) 
-alex_action_20 =  \p s -> TkFlecha (getShortPosn p) 
-alex_action_21 =  \p s -> TkAsignacion (getShortPosn p) 
-alex_action_22 =  \p s -> TkUnion (getShortPosn p) 
-alex_action_23 =  \p s -> TkInterseccion (getShortPosn p) 
-alex_action_24 =  \p s -> TkDiferencia (getShortPosn p) 
-alex_action_25 =  \p s -> TkComplemento (getShortPosn p) 
-alex_action_26 =  \p s -> TkCartesiano (getShortPosn p) 
-alex_action_27 =  \p s -> TkPartes (getShortPosn p) 
-alex_action_28 =  \p s -> TkMiembro (getShortPosn p) 
-alex_action_29 =  \p s -> TkVacio (getShortPosn p) 
-alex_action_30 =  \p s -> TkSubconjunto (getShortPosn p) 
-alex_action_31 =  \p s -> TkEstado (getShortPosn p) 
-alex_action_32 =  \p s -> TkOlvidar (getShortPosn p) 
-alex_action_33 =  \p s -> TkTodo (getShortPosn p) 
-alex_action_34 =  \p s -> TkFin (getShortPosn p) 
-alex_action_35 =  \p s -> TkIgual (getShortPosn p) 
-alex_action_36 =  \p s -> TkMenor (getShortPosn p) 
-alex_action_37 =  \p s -> TkMayor (getShortPosn p) 
-alex_action_38 =  \p s -> TkMayuscula (getShortPosn p) 
-alex_action_39 =  \p s -> TkLetra (getShortPosn p) 
-alex_action_40 =  \p s -> TkDigito (getShortPosn p) 
-alex_action_41 =  \p s -> TkSimbolo (getShortPosn p) 
-alex_action_42 =  \p s -> TkNegar (getShortPosn p) 
-alex_action_43 =  \p s -> TkId (getShortPosn p) s 
-{-# LINE 1 "templates/GenericTemplate.hs" #-}
-{-# LINE 1 "templates/GenericTemplate.hs" #-}
+alex_action_2 = \p s -> TkStr (getShortPosn p) (tail $ init s) 
+alex_action_3 = \p s -> TkEs (getShortPosn p) 
+alex_action_4 = \p s -> TkDe (getShortPosn p) 
+alex_action_5 = \p s -> TkTiene (getShortPosn p) 
+alex_action_6 = \p s -> TkDominio (getShortPosn p) 
+alex_action_7 = \p s -> TkConjunto (getShortPosn p) 
+alex_action_8 = \p s -> TkUniverso (getShortPosn p) 
+alex_action_9 = \p s -> TkUniversal (getShortPosn p) 
+alex_action_10 = \p s -> TkALlave (getShortPosn p) 
+alex_action_11 = \p s -> TkCLlave (getShortPosn p) 
+alex_action_12 = \p s -> TkACorchete (getShortPosn p) 
+alex_action_13 = \p s -> TkCCorchete (getShortPosn p) 
+alex_action_14 = \p s -> TkAParentesis (getShortPosn p) 
+alex_action_15 = \p s -> TkCParentesis (getShortPosn p) 
+alex_action_16 = \p s -> TkComa (getShortPosn p) 
+alex_action_17 = \p s -> TkPunto (getShortPosn p) 
+alex_action_18 = \p s -> TkPuntoPunto (getShortPosn p) 
+alex_action_19 = \p s -> TkBarra (getShortPosn p) 
+alex_action_20 = \p s -> TkFlecha (getShortPosn p) 
+alex_action_21 = \p s -> TkAsignacion (getShortPosn p) 
+alex_action_22 = \p s -> TkUnion (getShortPosn p) 
+alex_action_23 = \p s -> TkInterseccion (getShortPosn p) 
+alex_action_24 = \p s -> TkDiferencia (getShortPosn p) 
+alex_action_25 = \p s -> TkComplemento (getShortPosn p) 
+alex_action_26 = \p s -> TkCartesiano (getShortPosn p) 
+alex_action_27 = \p s -> TkPartes (getShortPosn p) 
+alex_action_28 = \p s -> TkMiembro (getShortPosn p) 
+alex_action_29 = \p s -> TkVacio (getShortPosn p) 
+alex_action_30 = \p s -> TkSubconjunto (getShortPosn p) 
+alex_action_31 = \p s -> TkEstado (getShortPosn p) 
+alex_action_32 = \p s -> TkOlvidar (getShortPosn p) 
+alex_action_33 = \p s -> TkTodo (getShortPosn p) 
+alex_action_34 = \p s -> TkFin (getShortPosn p) 
+alex_action_35 = \p s -> TkIgual (getShortPosn p) 
+alex_action_36 = \p s -> TkMenor (getShortPosn p) 
+alex_action_37 = \p s -> TkMayor (getShortPosn p) 
+alex_action_38 = \p s -> TkMayuscula (getShortPosn p) 
+alex_action_39 = \p s -> TkLetra (getShortPosn p) 
+alex_action_40 = \p s -> TkDigito (getShortPosn p) 
+alex_action_41 = \p s -> TkSimbolo (getShortPosn p) 
+alex_action_42 = \p s -> TkNegar (getShortPosn p) 
+alex_action_43 = \p s -> TkId (getShortPosn p) s 
+{-# LINE 1 "GenericTemplate.hs" #-}
 {-# LINE 1 "<built-in>" #-}
-{-# LINE 1 "<command-line>" #-}
-{-# LINE 1 "templates/GenericTemplate.hs" #-}
+{-# LINE 1 "<command line>" #-}
+{-# LINE 1 "GenericTemplate.hs" #-}
 -- -----------------------------------------------------------------------------
 -- ALEX TEMPLATE
 --
@@ -330,19 +216,19 @@ alex_action_43 =  \p s -> TkId (getShortPosn p) s
 -- -----------------------------------------------------------------------------
 -- INTERNALS and main scanner engine
 
-{-# LINE 35 "templates/GenericTemplate.hs" #-}
+{-# LINE 35 "GenericTemplate.hs" #-}
 
-{-# LINE 45 "templates/GenericTemplate.hs" #-}
+{-# LINE 45 "GenericTemplate.hs" #-}
 
-{-# LINE 66 "templates/GenericTemplate.hs" #-}
+{-# LINE 66 "GenericTemplate.hs" #-}
 alexIndexInt16OffAddr arr off = arr ! off
 
 
-{-# LINE 87 "templates/GenericTemplate.hs" #-}
+{-# LINE 87 "GenericTemplate.hs" #-}
 alexIndexInt32OffAddr arr off = arr ! off
 
 
-{-# LINE 98 "templates/GenericTemplate.hs" #-}
+{-# LINE 98 "GenericTemplate.hs" #-}
 quickIndex arr i = arr ! i
 
 
@@ -467,3 +353,82 @@ alexRightContext (sc) user _ _ input =
 
 -- used by wrappers
 iUnbox (i) = i
+{-# LINE 1 "wrappers.hs" #-}
+{-# LINE 1 "<built-in>" #-}
+{-# LINE 1 "<command line>" #-}
+{-# LINE 1 "wrappers.hs" #-}
+-- -----------------------------------------------------------------------------
+-- Alex wrapper code.
+--
+-- This code is in the PUBLIC DOMAIN; you may copy it freely and use
+-- it for any purpose whatsoever.
+
+-- -----------------------------------------------------------------------------
+-- The input type
+
+
+type AlexInput = (AlexPosn, 	-- current position,
+		  Char,		-- previous char
+		  String)	-- current input string
+
+alexInputPrevChar :: AlexInput -> Char
+alexInputPrevChar (p,c,s) = c
+
+alexGetChar :: AlexInput -> Maybe (Char,AlexInput)
+alexGetChar (p,c,[]) = Nothing
+alexGetChar (p,_,(c:s))  = let p' = alexMove p c in p' `seq`
+				Just (c, (p', c, s))
+
+-- -----------------------------------------------------------------------------
+-- Token positions
+
+-- `Posn' records the location of a token in the input text.  It has three
+-- fields: the address (number of chacaters preceding the token), line number
+-- and column of a token within the file. `start_pos' gives the position of the
+-- start of the file and `eof_pos' a standard encoding for the end of file.
+-- `move_pos' calculates the new position after traversing a given character,
+-- assuming the usual eight character tab stops.
+
+data AlexPosn = AlexPn !Int !Int !Int
+	deriving (Eq,Show)
+
+alexStartPos :: AlexPosn
+alexStartPos = AlexPn 0 1 1
+
+alexMove :: AlexPosn -> Char -> AlexPosn
+alexMove (AlexPn a l c) '\t' = AlexPn (a+1)  l     (((c+7) `div` 8)*8+1)
+alexMove (AlexPn a l c) '\n' = AlexPn (a+1) (l+1)   1
+alexMove (AlexPn a l c) _    = AlexPn (a+1)  l     (c+1)
+
+
+-- -----------------------------------------------------------------------------
+-- Default monad
+
+{-# LINE 126 "wrappers.hs" #-}
+
+-- -----------------------------------------------------------------------------
+-- Basic wrapper
+
+{-# LINE 147 "wrappers.hs" #-}
+
+-- -----------------------------------------------------------------------------
+-- Posn wrapper
+
+-- Adds text positions to the basic model.
+
+
+--alexScanTokens :: String -> [token]
+alexScanTokens str = go (alexStartPos,'\n',str)
+  where go inp@(pos,_,str) =
+	  case alexScan inp 0 of
+		AlexEOF -> []
+		AlexError _ -> error "lexical error"
+		AlexSkip  inp' len     -> go inp'
+		AlexToken inp' len act -> act pos (take len str) : go inp'
+
+
+-- -----------------------------------------------------------------------------
+-- GScan wrapper
+
+-- For compatibility with previous versions of Alex, and because we can.
+

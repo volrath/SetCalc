@@ -250,18 +250,26 @@ constructor tup1 tup2 = case tup1 of
                                                        True -> case unirMapas m n of
                                                                  Right res -> Right (res, (construirAST a b))
                                                                  Left err2 -> Left (m,err2)
-                                                       False -> case (unirMapas (actualizarMapa m (Map.toList (chequearAsignacion b))) n) of
-                                                                  Right res -> Right (res, construirAST a b)
-                                                                  Left err2 -> Left (m,err2)
+                                                       False -> case actualizarMapa m (Map.toList (chequearAsignacion b)) of
+                                                                 Right res -> case unirMapas res n of
+                                                                               Right res2 -> Right (res2, construirAST a b)
+                                                                               Left err2 -> Left (m,err2)
+                                                                 Left (m2,err) -> case unirMapas m2 n of
+                                                                                   Right res2 -> Left (res2, err)
+                                                                                   Left err2 -> Left (m, err ++ "/n" ++ err2)
                                             Left errs -> Left (m,errs)
                           Left (m, errs) -> case tup2 of
                                             Right (n, b) -> case Map.null (chequearAsignacion b) of
                                                        True -> case unirMapas m n of
-                                                                 Right res -> Right (res, b)
+                                                                 Right res -> Left (res, errs)
                                                                  Left err2 -> Left (m, errs ++ "\n" ++ err2)
-                                                       False -> case (unirMapas (actualizarMapa m (Map.toList (chequearAsignacion b))) n) of
-                                                                  Right res -> Right (res, b)
-                                                                  Left err2 -> Left (m, errs ++ "\n" ++ err2)
+                                                       False -> case actualizarMapa m (Map.toList (chequearAsignacion b)) of
+                                                                 Right res -> case unirMapas res n of
+                                                                               Right res2 -> Left (res2, errs)
+                                                                               Left err2 -> Left (m, errs ++ "\n" ++ err2)
+                                                                 Left (m2,err) -> case unirMapas m2 n of
+                                                                                   Right res2 -> Left (res2,errs ++ "\n" ++ err)
+                                                                                   Left err2 -> Left (m, errs++ "\n" ++ err2 ++ "\n" ++ err)
                                             Left err -> Left (m, errs ++ "\n" ++ err)
                                          
                                                
@@ -297,28 +305,36 @@ crearValor map x = case snd(x) of
 crearDominio :: Map.Map Var Symbol -> (Var, Symbol) -> Either String (Map.Map Var Symbol)
 crearDominio map (k, v) =
     case  Map.lookup k map of
-      Just (Symbol (Just dom, Just con)) -> Left ("La variable " ++ ((\(Var s) -> s) k) ++ " ya esta definida.")
-      Just (Symbol (Just dom, Nothing)) -> Left ("La variable " ++ ((\(Var s) -> s) k) ++ " ya esta definida.X")
+      Just (Symbol (Just dom, Just con)) -> Left ("Ya existe un dominio con el nombre de variable " ++ ((\(Var s) -> s) k) ++ ".")
+      Just (Symbol (Just dom, Nothing)) -> Left ("Ya existe un dominio con el nombre de variable " ++ ((\(Var s) -> s) k) ++ ".")
       Just (Symbol (Nothing, Just con)) -> Right (Map.union (Map.singleton k (Symbol (Just (takeDom v), Just con))) map)
       Nothing -> Right (Map.insert k (Symbol (Just (takeDom v), Nothing)) map)
 
 crearConjunto :: Map.Map Var Symbol -> (Var, Symbol) -> Either String (Map.Map Var Symbol)
 crearConjunto map (k, v) =
     case  Map.lookup k map of
-      Just (Symbol (Just dom, Just con)) -> Left ("La variable " ++ ((\(Var s) -> s) k) ++ " ya esta definida.")
-      Just (Symbol (Nothing, Just con)) -> Left ("La variable " ++ ((\(Var s) -> s) k) ++ " ya esta definida.X")
+      Just (Symbol (Just dom, Just con)) -> Left ("Ya existe un conjunto con el nombre de variable " ++ ((\(Var s) -> s) k) ++ ".")
+      Just (Symbol (Nothing, Just con)) -> Left ("Ya existe un conjunto con el nombre de variable " ++ ((\(Var s) -> s) k) ++ ".")
       Just (Symbol (Just dom, Nothing)) -> Right (Map.union (Map.singleton k (Symbol (Just dom , Just (takeConj v)))) map)
       Nothing -> Right (Map.insert k (Symbol (Nothing , Just (takeConj v))) map)
 
-actualizarMapa :: Map.Map Var Symbol -> [(Var, Symbol)] -> Map.Map Var Symbol
-actualizarMapa map1 ((m2key, m2value):[]) = actualizarMapa' m2key map1
-actualizarMapa map1 ((m2key, m2value):m2s) = Map.union (actualizarMapa' m2key map1) (actualizarMapa map1 m2s)
+actualizarMapa :: Map.Map Var Symbol -> [(Var, Symbol)] -> Either ((Map.Map Var Symbol), String) (Map.Map Var Symbol)
+actualizarMapa map1 ((m2key, m2value):[]) = case actualizarMapa' m2key map1 of
+                                             Right res -> Right res
+                                             Left err -> Left (map1,err)
+actualizarMapa map1 ((m2key, m2value):m2s) = case actualizarMapa' m2key map1 of
+                                              Right res -> case actualizarMapa map1 m2s of 
+                                                            Right res1 -> Right (Map.union res res1)
+                                                            Left (m,err) -> Left (Map.union res m, err)
+                                              Left err -> case actualizarMapa map1 m2s of
+                                                           Right res1 -> Left (res1,err)
+                                                           Left (m,err1) -> Left (m,err++err1)
 
-actualizarMapa' :: Var -> Map.Map Var Symbol -> Map.Map Var Symbol
+actualizarMapa' :: Var -> Map.Map Var Symbol -> Either String (Map.Map Var Symbol)
 actualizarMapa' key map = case Map.lookup key map of
-                           Just (Symbol (_, Just con)) -> map
-                           Just (Symbol (_, Nothing)) -> "La variable " ++ ((\(Var s) -> s) key) ++ " no esta definida."
-                           Nothing -> "La variable " ++ ((\(Var s) -> s) key) ++ " no esta definida."
+                           Just (Symbol (_, Just con)) -> Right map
+                           Just (Symbol (_, Nothing)) -> Left ("La variable " ++ ((\(Var s) -> s) key) ++ " no esta definida.")
+                           Nothing -> Left ("La variable " ++ ((\(Var s) -> s) key) ++ " no esta definida.")
 
 takeDom :: Symbol -> Dominio
 takeDom (Symbol (Just a, _)) = a
