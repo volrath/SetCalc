@@ -94,11 +94,9 @@ Decl  : Lista_id es dominio Dominio                                  { insertarD
       | Lista_id tiene dominio id                                    { insertarConjunto $1 (Dominio (SetC.fromList [Ident $4])) }
 
 Dominio : ConjuntoDom                                                { Dominio $1 }
-        | universal                                                  { Dominio (crearUniverso) }
+        | universal                                                  { Dominio (elUniverso) }
 
-Conjunto : ConjuntoCto                                               { Conjunto $1 }
-
-ConjuntoDom : '{' '}'                                                { (SetC.emptySet) }
+ConjuntoDom : '{' '}'                                                { (SetC.emptySet)  }
             | '{' LAlfa '}'                                          { (SetC.fromList $2) }
             | '{' ListaConjDom '}'                                   { (SetC.fromList $2) }
             | '{' ListaArregloDom '}'                                { (SetC.fromList $2) }
@@ -119,10 +117,10 @@ ListaArregloDom : '[' ']'                                            { [Lista []
 Lista_id : id                                                        { [$1] }
          | Lista_id ',' id                                           { $1 ++ [$3] }
 
-ConjuntoCto : '{' '}'                                                { (SetC.emptySet) }
-            | '{' Alfa_ran '}'                                       { (SetC.fromList $2) }
-            | '{' ListaConj '}'                                      { (SetC.fromList $2) }
-            | '{' ListaArreglo '}'                                   { (SetC.fromList $2) }
+Conjunto : '{' '}'                                                   { Conjunto (SetC.emptySet) (Dominio (SetC.emptySet)) }
+         | '{' Alfa_ran '}'                                          { Conjunto (SetC.fromList $2) (Dominio (SetC.emptySet)) }
+         | '{' ListaConj '}'                                         { Conjunto (SetC.fromList $2) (Dominio (SetC.emptySet)) }
+         | '{' ListaArreglo '}'                                      { Conjunto (SetC.fromList $2) (Dominio (SetC.emptySet)) }
 
 Alfa_ran : str                                                       { [Elem (takeStr $1)] }
          | str '..' str                                              { [Rango (head $ takeStr $1) (head $ takeStr $3)] }
@@ -160,7 +158,7 @@ Expr     : Conjunto                                                  { OpConj $1
          | '(' Expr ')'                                              { $2 }
          | Asig                                                      { $1 }
 
-Universo : universo                                                  { UniversoT (Conjunto (crearUniverso)) }
+Universo : universo                                                  { UniversoT (crearUniverso) }
          | universo de id                                            { UniversoDe $3 }
 
 Extension : '{' ConjuntoId '|' LGenerador ',' LFiltro '}'            { ConjuntoExt $2 $4 $6 }
@@ -471,7 +469,7 @@ insertarConjunto :: [Token] -- ^ Lista de variables a inicializar
                  -> Dominio -- ^ Dominio sobre el cual se quiere inicializar los conjuntos.
                  -> Either String (Map.Map Token Symbol) -- ^ El nuevo mapa de símbolos o un string con algún error.
 insertarConjunto [] conj = Right Map.empty
-insertarConjunto (x:xs) conj = case unirMapas' (Map.singleton x (Symbol (Nothing, Just (Conjunto (SetC.emptySet))))) (map (hacerTuplaConj) xs) of
+insertarConjunto (x:xs) conj = case unirMapas' (Map.singleton x (Symbol (Nothing, Just (Conjunto (SetC.emptySet) conj)))) (map (hacerTuplaConj conj) xs) of
                                  Right map1 -> Right map1
                                  Left errs -> Left errs
 
@@ -479,9 +477,10 @@ insertarConjunto (x:xs) conj = case unirMapas' (Map.singleton x (Symbol (Nothing
   Crea una tupla que contiene el nombre de la variable pasada por parametro
   y un conjunto vacío.
 -}
-hacerTuplaConj :: Token -- ^ Variable a crear.
+hacerTuplaConj :: Dominio
+               -> Token -- ^ Variable a crear.
                -> (Token, Symbol) -- ^ Conjunto vacío
-hacerTuplaConj x = (x, (Symbol (Nothing, Just (Conjunto (SetC.emptySet)))))
+hacerTuplaConj dom x = (x, (Symbol (Nothing, Just (Conjunto (SetC.emptySet) (dom)))))
 
 {-|
   Dado un AST, revisa toda la lista de expresiones que éste contenga y
@@ -489,7 +488,7 @@ hacerTuplaConj x = (x, (Symbol (Nothing, Just (Conjunto (SetC.emptySet)))))
   dentro de un AST completo.
 -}
 chequearAsignacion :: AST -- ^ AST a analizar
-                   -> Map.Map Token Symbol-- ^ Mapa de símbolos resultante
+                   -> Map.Map Token Symbol -- ^ Mapa de símbolos resultante
 chequearAsignacion (Secuencia []) = Map.empty
 chequearAsignacion (Expr exp) = chequearAsignacion' exp Map.empty
 chequearAsignacion (Secuencia (x:[])) = chequearAsignacion' x Map.empty
@@ -513,9 +512,9 @@ chequearAsignacion' exp map = case exp of
                                Partes x -> Map.union map (chequearAsignacion' x map)
                                Complemento x -> Map.union map (chequearAsignacion' x map)
                                OpExtension (ConjuntoExt set gens fils) -> Map.union map (chequearGenerador gens)
-                               Asignacion var x -> Map.union (Map.insert var (Symbol (Nothing, Just (Conjunto (SetC.emptySet)))) map) (chequearAsignacion' x map)
-                               OpId var -> Map.insert var (Symbol (Nothing, Just (Conjunto (SetC.emptySet)))) map
-                               OpUniverso(UniversoDe var) -> Map.insert var (Symbol (Nothing, Just (Conjunto (SetC.emptySet)))) map
+                               Asignacion var x -> Map.union (Map.insert var (Symbol (Nothing, Just (Conjunto (SetC.emptySet) (Dominio (SetC.emptySet))))) map) (chequearAsignacion' x map)
+                               OpId var -> Map.insert var (Symbol (Nothing, Just (Conjunto (SetC.emptySet) (Dominio (SetC.emptySet))))) map
+                               OpUniverso(UniversoDe var) -> Map.insert var (Symbol (Nothing, Just (Conjunto (SetC.emptySet) (Dominio (SetC.emptySet))))) map
                                _ -> Map.empty
 
 {-|
@@ -527,7 +526,7 @@ chequearAsignacion' exp map = case exp of
 chequearGenerador :: [Generador] -- ^ Lista de generadores  
                   -> Map.Map Token Symbol -- ^ Mapa generado con las variables de los lados derechos de los generadores.
 chequearGenerador [] = Map.empty
-chequearGenerador ((Gen x y):xs) = Map.union (Map.singleton y (Symbol (Nothing, Just (Conjunto (SetC.emptySet))))) (chequearGenerador xs)
+chequearGenerador ((Gen x y):xs) = Map.union (Map.singleton y (Symbol (Nothing, Just (Conjunto (SetC.emptySet) (Dominio (SetC.emptySet)))))) (chequearGenerador xs)
 
 {-|
   Verifica que se haya recibido efectivamente un Mapa de símbolos
@@ -555,7 +554,11 @@ doCto [(Cto a)] [(Cto b)] = [Cto a, Cto b]
   Crea el universo de todos los caractéres alfanuméricos imprimibles
   en Haskell.
 -}
-crearUniverso = SetC.fromList (map Elem (map (\c -> [c]) (filter isPrint ['\000'..'\177'])))
+elUniverso = SetC.fromList (map Elem (map (\c -> [c]) (filter isPrint ['\000'..'\177'])))
+
+-- DOCUMENTAR
+crearUniverso = Conjunto elUniverso (Dominio elUniverso)
+
 
 {-|
   Función que devuelve el string envuelto por un Token cuyo constructor

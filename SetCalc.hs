@@ -42,12 +42,12 @@ main =
          then do
            -- Se corre el interpretador
            putStr "Interpretador SetCalc:\n"
-           let loop = do
+           let loop mapaActual = do
                  hSetBuffering stdout NoBuffering
                  line <- promptAndGet
-                 catchOrPrint (parser $ lexer line)
+                 catchSilently (chequear mapaActual (parser $ lexer line))
                  loop
-           loop
+           loop Map.empty
          else do
            if (length args) == 1
              then do
@@ -85,10 +85,11 @@ promptAndGet =
   los imprime por la salida de error estandar y permite recuperar
   el prompt.
 -}
-catchOrPrint ::  TupParser -- ^ La ejecución de las funciones parser y lexer sobre un string.
-             -> IO() -- ^ La impresión del resultado de la ejecución de la función.
-catchOrPrint tup = C.catch (print tup) fail
-    where fail e = hPrint stderr e
+catchSilently ::  TupParser -- ^ La ejecución de las funciones parser y lexer sobre un string.
+              -> IO() -- ^ La impresión del resultado de la ejecución de la función.
+catchSilently (map, ast) = 
+catchSilently (Exception c) = 
+
 
 
 

@@ -45,7 +45,7 @@ data Dominio = Dominio (SetC Elemento) -- ^ Dominio
   Tipo abstracto de datos que modela un cojunto del lenguaje
   de calculadora /SetCalc/
 -}
-data Conjunto = Conjunto (SetC Elemento) -- ^ Conjunto
+data Conjunto = Conjunto (SetC Elemento) Dominio -- ^ Conjunto
               deriving (Eq, Show)
 
 {-|
