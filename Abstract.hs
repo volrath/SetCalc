@@ -12,6 +12,7 @@ module Abstract (
         Elemento(..)
 ) where
 import SetC
+import Lexer
 
 {-|
   TAD /AST/:
@@ -34,7 +35,7 @@ data Conjunto = Conjunto (SetC Elemento)
 
 data Inst = Estado
           | OlvidarTodo
-          | Olvidar [String]
+          | Olvidar [Token]
           | Fin
           deriving (Eq,Show)
 
@@ -46,15 +47,15 @@ data Expresion = Union Expresion Expresion
                | Partes Expresion
                | OpUniverso Univ
                | OpExtension Ext
-               | OpConj Conjunto -- Symbol
-	       | OpId String
-               | Asignacion String Expresion
+               | OpConj Conjunto
+	       | OpId Token
+               | Asignacion Token Expresion
                  deriving (Eq,Show)
 
 data Ext = ConjuntoExt (SetC Elemento) [Generador] [Filtro]
          deriving (Eq,Show)
 
-data Generador = Gen String String
+data Generador = Gen String Token
                deriving (Eq,Show)
 
 data Filtro = FilIgual Elemento Elemento
@@ -71,11 +72,11 @@ data Filtro = FilIgual Elemento Elemento
             deriving (Eq,Show)
 
 data Univ = UniversoT Conjunto
-          | UniversoDe String
+          | UniversoDe Token
           deriving (Eq,Show)
 
 data Elemento = Elem String
-              | Ident String
+              | Ident Token
               | Cto (SetC Elemento)
               | Lista [Elemento]
               | Rango Char Char

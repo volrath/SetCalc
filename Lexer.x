@@ -136,7 +136,7 @@ data Token = TkEs (Int, Int)
            | TkDigito (Int, Int)
            | TkSimbolo (Int, Int)
            | TkNegar (Int, Int)
-           deriving (Eq, Show)
+           deriving (Eq, Show, Ord)
 {-|
   lexer
   
