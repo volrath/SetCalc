@@ -155,8 +155,9 @@ Expr     : Conjunto                                                  { OpConj $1
          | '~' Expr                                                  { Complemento $2 }
          | Expr '%' Expr                                             { Cartesiano $1 $3 }
          | Expr '!'                                                  { Partes $1 }
-         | '(' Expr ')'                                              { $2 }
          | Asig                                                      { $1 }
+         | '(' Expr ')'                                              { $2 }
+
 
 Universo : universo                                                  { UniversoT (crearUniverso) }
          | universo de id                                            { UniversoDe $3 }

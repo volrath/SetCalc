@@ -63,7 +63,6 @@ module Interpreter (
 -- * Función Principal.
   interpreter,
   compararTipos,
-  chequeoEstructural,
   calcularExpresion,
 ) where
 
@@ -78,6 +77,7 @@ import Parser
 import Abstract
 
 type SymTable = Map.Map String Symbol
+type SetTable = Map.Map String (SetC Elemento)
 type TupParser = (SymTable, AST)
 
 interpreter :: TupParser
@@ -87,7 +87,8 @@ interpreter (map, ast) = print $ printOperations map ast
 printOperations :: SymTable
                 -> AST
                 -> String
-printOperations map (Expr e) = (show e) ++ " ==> " ++ (show $ calcularExpresion map e) ++ "\n"
+printOperations map (Expr e) = (show e) ++ " ==> " ++ (show $ calcularExpresion map e)
+printOperations map (Secuencia []) = "\n"
 printOperations map (Secuencia (e:[])) = printOperations map (Expr e)
 printOperations map (Secuencia (e:es)) = (printOperations map (Expr e)) ++ (printOperations map (Secuencia es))
 
@@ -95,21 +96,9 @@ printOperations map (Secuencia (e:es)) = (printOperations map (Expr e)) ++ (prin
 
 
 
-prueba :: TupParser -> IO()
-prueba tp = case chequeoEstructural
-                    (Map.fromList 
-                            [("bar",Symbol (Just (Dominio (SetC.emptySet)),Nothing)),
-                             ("foo",Symbol (Just (Dominio (SetC.fromList [(Elem "1"), (Elem "2")])),Just (Conjunto (SetC.emptySet) (DominioID "foo")))),
-                             ("z",Symbol (Just (DominioID "bar"),Just (Conjunto (SetC.emptySet) (Dominio (SetC.fromList [(Elem "1"), (Elem "2")])))))])
-                    tp of
-                      Right _ -> print "yataaa"
-                      Left (errs, _)  -> print errs
-                    
-
-
-
-
-
+prueba :: TupParser -> Maybe String
+prueba (s, Secuencia [OpConj (Conjunto sc d)]) = verificarTipoConjunto sc sc
+                  
 
 
 
@@ -134,47 +123,69 @@ calcularExpresion map (Asignacion t e) = calcularExpresion map e
 
 
 
-chequeoEstructural :: SymTable -- ^ El mapa viejo
-                   -> TupParser -- ^ El TupParser de la linea nueva
-                   -> Either (String, SymTable) TupParser -- ^ El mapa de la nueva linea con los valores de los conjuntos colocados con las nuevas asignaciones
-chequeoEstructural old (new,(Secuencia [])) = Right (new, (Secuencia []))
-chequeoEstructural old (new,(Secuencia (e:[]))) = case chequeoEstructural' (Map.union old new) e of
-                                                    Right nmap -> Right (nmap, (Secuencia []))
-                                                    Left errs -> Left errs
-chequeoEstructural old (new,(Secuencia (e:es))) = case chequeoEstructural' (Map.union old new) e of
-                                                  Right nmap -> case chequeoEstructural old (nmap,(Secuencia es)) of
-                                                                  Right nmap2 -> Right nmap2
-                                                                  Left errs -> Left errs
-                                                  Left errs -> Left errs
+-- chequeoEstructural :: SymTable -- ^ El mapa viejo
+--                    -> TupParser -- ^ El TupParser de la linea nueva
+--                    -> Either (String, SymTable) SetTable -- ^ El mapa de la nueva linea con los valores de los conjuntos colocados con las nuevas asignaciones
+-- chequeoEstructural actual (linea,(Secuencia [])) = Right (Map.empty)
+-- chequeoEstructural actual (linea,s@(Secuencia (e:[]))) = case chequeoEstructural' (Map.unionWith (\k1 k2 -> k2) actual linea) e of
+--                                                     Right nmap -> Right (sym2setTable nmap)
+--                                                     Left errs -> Left errs
+-- chequeoEstructural actual (linea,s@(Secuencia (e:es))) = case chequeoEstructural' (Map.unionWith (\k1 k2 -> k2) actual linea) e of
+--                                                   Right nmap -> case chequeoEstructural (Map.unionWith (\k1 k2 -> k2) actual nmap) (linea,(Secuencia es)) of
+--                                                                   Right nmap2 -> Right nmap2
+--                                                                   Left errs -> Left errs
+--                                                   Left errs -> Left errs
 
 
-chequeoEstructural' :: SymTable -- ^ El mapa contra el que se realiza el chequeo
-                    -> Expresion -- ^ Expresion a chequear
-                    -> Either (String, SymTable) (SymTable) -- ^ El mapa resultado despues de evaluar la expresion.
-chequeoEstructural' m (Union e1 e2)
-    | compararTipos
-      (SetC.takeType $ calcularExpresion m e1)
-      (SetC.takeType $ calcularExpresion m e2) = Right m
-    | otherwise = Left ("Error de tipos en union", Map.empty)
-chequeoEstructural' m (Interseccion e1 e2)
-    | compararTipos 
-      (SetC.takeType $ calcularExpresion m e1)
-      (SetC.takeType $ calcularExpresion m e2) = Right m
-    | otherwise = Left ("Error de tipos interseccion", Map.empty)
-chequeoEstructural' m (Diferencia e1 e2)
-    | compararTipos 
-      (SetC.takeType $ calcularExpresion m e1)
-      (SetC.takeType $ calcularExpresion m e2) = Right m
-    | otherwise = Left ("Error de tipos en diferencia", Map.empty)
-chequeoEstructural' m (Cartesiano e1 e2)
-    | compararTipos 
-      (SetC.takeType $ calcularExpresion m e1)
-      (SetC.takeType $ calcularExpresion m e2) = Right m
-    | otherwise = Left ("Error de tipos en cartesiano", Map.empty)
-chequeoEstructural' m (Asignacion var e) = case chequeoEstructural' m e of
-                                             Right m -> Right (actualizarConjS (takeStr var) (calcularExpresion m e) m)
-                                             Left tuplaerror -> Left tuplaerror
-chequeoEstructural' m _ = Right m
+
+
+-- chequeoEstructural' :: SymTable -- ^ El mapa contra el que se realiza el chequeo
+--                     -> Expresion -- ^ Expresion a chequear
+--                     -> Either (String, SymTable) SymTable -- ^ El mapa resultado despues de evaluar la expresion.
+-- chequeoEstructural' m (Union e1 e2)
+--     | compararTipos
+--       (SetC.takeType $ calcularExpresion m e1)
+--       (SetC.takeType $ calcularExpresion m e2) = Right m
+--     | otherwise = Left ("Error de tipos en union", Map.empty)
+-- chequeoEstructural' m (Interseccion e1 e2)
+--     | compararTipos 
+--       (SetC.takeType $ calcularExpresion m e1)
+--       (SetC.takeType $ calcularExpresion m e2) = Right m
+--     | otherwise = Left ("Error de tipos interseccion", Map.empty)
+-- chequeoEstructural' m (Diferencia e1 e2)
+--     | compararTipos 
+--       (SetC.takeType $ calcularExpresion m e1)
+--       (SetC.takeType $ calcularExpresion m e2) = Right m
+--     | otherwise = Left ("Error de tipos en diferencia", Map.empty)
+-- chequeoEstructural' m (Cartesiano e1 e2)
+--     | compararTipos 
+--       (SetC.takeType $ calcularExpresion m e1)
+--       (SetC.takeType $ calcularExpresion m e2) = Right m
+--     | otherwise = Left ("Error de tipos en cartesiano", Map.empty)
+-- chequeoEstructural' m (Asignacion var e) = case chequeoEstructural' m e of
+--                                              Right m -> Right (actualizarConjS ((takeStr var),(calcularExpresion m e)) m)
+--                                              Left tuplaerror -> Left tuplaerror
+-- chequeoEstructural' m _ = Right m
+
+
+
+verificarTipoConjunto :: SetC Elemento
+                      -> SetC Elemento
+                      -> Maybe String
+verificarTipoConjunto set intocable = case SetC.takeType set of
+                                        Nothing -> Nothing
+                                        Just (x:[]) -> case x of
+                                                         Elem s -> Nothing
+                                                         Cto sc -> verificarTipoConjunto sc intocable
+                                                         Lista l -> verificarTipoConjunto (SetC.fromList l) intocable
+                                                         _ -> Nothing
+                                        Just elem@(x1:(x2:[])) -> case compararTipos x1 x2 of
+                                                                    True  -> Nothing
+                                                                    False -> Just $ "El tipo de datos del elemento " ++ (show intocable) ++ " esta mal definido\n"
+                                        Just elem@(x1:(x2:xs)) -> case compararTipos x1 x2 of
+                                                                    True  -> verificarTipoConjunto (SetC.fromList (x2:xs)) intocable
+                                                                    False -> Just $ "El tipo de datos del elemento " ++ (show intocable) ++ " esta mal definido\n"
+
 
 {-
 compararTipos recibe dos mapas y averigua si sus tipos son equivalentes
@@ -182,12 +193,13 @@ compararTipos recibe dos mapas y averigua si sus tipos son equivalentes
 compararTipos :: Elemento
               -> Elemento
               -> Bool
-compararTipos (Cto c1) (Cto c2)
-    | SetC.isEmpty c1 && SetC.isEmpty c2 = True
-    | SetC.isEmpty c1 && tieneElementos c2 = True
-    | tieneElementos c1 && SetC.isEmpty c2 = True
-    | (not $ SetC.isEmpty c1) && (not $ SetC.isEmpty c2) = compararTipos (SetC.takeType c1) (SetC.takeType c2)
-    | otherwise = False
+compararTipos (Cto c1) (Cto c2) = case SetC.takeType c1 of
+                                    Nothing -> case SetC.takeType c2 of
+                                                 Nothing -> True
+                                                 Just elems -> sonElementos elems
+                                    Just elems -> case SetC.takeType c2 of
+                                                    Nothing -> sonElementos elems
+                                                    Just elems2 -> compararTipos (head elems) (head elems2)
 compararTipos (Lista []) (Lista ((Elem x2):es2)) = True
 compararTipos (Lista ((Elem x1):es1)) (Lista []) = True
 compararTipos (Lista []) (Lista []) = True
@@ -207,16 +219,25 @@ evalUniverso :: SymTable
 evalUniverso map (UniversoT (Conjunto cu d)) = cu
 evalUniverso map (UniversoDe t) = conjuntoSetC $ takeConj (map Map.! (takeStr t))
 
+{-
+Recibe un
+-}
+sym2setTable :: SymTable
+             -> SetTable
+sym2setTable sym = toSetTable (Map.toList sym)
+    where toSetTable ((key,(Symbol (_, Just (Conjunto sc d)))):[]) = Map.singleton key sc
+          toSetTable ((key,(Symbol (_, Just (Conjunto sc d)))):es) = Map.union (Map.singleton key sc) (toSetTable es)
+          toSetTable _ = Map.empty
+
 
 {-
 Recibe una variable que debe ser un conjunto en el symtable, y un setC a meter en el
 lugar de esa variable, sin tocar el dominio del conjunto
 -}
-actualizarConjS :: String
-                -> SetC Elemento
+actualizarConjS :: (String, SetC Elemento)
                 -> SymTable
                 -> SymTable
-actualizarConjS var nconj m = Map.insertWith sobreescribirConj var (Symbol (Nothing, Just (Conjunto nconj (Dominio (SetC.emptySet))))) m
+actualizarConjS (var,nconj) m = Map.insertWith sobreescribirConj var (Symbol (Nothing, Just (Conjunto nconj (Dominio (SetC.emptySet))))) m
     where sobreescribirConj (Symbol (od, oc)) (Symbol (_, Just (Conjunto ncs ncd))) = case oc of
                                                          Nothing -> (Symbol (od, Just (Conjunto ncs ncd)))
                                                          Just (Conjunto sc d) -> (Symbol (od, Just (Conjunto ncs d)))
@@ -254,8 +275,8 @@ conjuntoDom :: Conjunto
             -> Dominio
 conjuntoDom (Conjunto sc d) = d
 
-tieneElementos :: SetC Elemento
-               -> Bool
-tieneElementos c = case SetC.takeType c of
-                     (Elem x) -> True
-                     _ -> False
+sonElementos :: [Elemento]
+             -> Bool
+sonElementos [] = True 
+sonElementos ((Elem e): es) = True && sonElementos es
+sonElementos _ = False

@@ -101,7 +101,8 @@ isMember e (Set x) = elem e x
   Retorna un valor booleano que indica si el conjunto @set1@ es subconjunto del
   conjunto @set2@
 -}
-subSet :: (Eq a) => SetC a -- ^ Conjunto
+subSet :: (Eq a) => 
+          SetC a -- ^ Conjunto
        -> SetC a -- ^ Conjunto
        -> Bool -- ^ True si el primer conjunto es subconjunto del segundo, False si lo contrario
 subSet (Set []) _ = True
@@ -201,8 +202,9 @@ minusSet :: (Eq a) => SetC a -- ^ Conjunto
 minusSet (Set x) (Set y) = Set (x \\ y)
 
 takeType :: SetC a
-         -> a
-takeType (Set x)  = head x
+         -> Maybe [a]
+takeType (Set []) = Nothing
+takeType (Set l@(x:xs))  = Just l
 
 {-|
   @toList set@
