@@ -43,12 +43,7 @@ main =
          then do
            -- Se corre el interpretador
            putStr "Interpretador SetCalc:\n"
-           let loop = do
-                 hSetBuffering stdout NoBuffering
-                 line <- promptAndGet
-                 catchSilently(chequear (Map.fromList [("foo",Symbol (Just (Dominio SetC.emptySet),Just (Conjunto SetC.emptySet (Dominio SetC.emptySet))))]) (lexer line))
-                 loop
-           loop
+           loop Map.empty
          else do
            if (length args) == 1
              then do
@@ -74,9 +69,18 @@ main =
   introducida por el usuario.
 -}
 promptAndGet :: IO String -- ^ Línea leída desde la consola
-promptAndGet =
+promptAndGet = do
+    hSetBuffering stdout NoBuffering
     putStr "SetCalc> "
     >> getLine
+
+loop :: Map.Map String Symbol 
+     -> IO()
+
+loop mapaActual = do
+                 line <- promptAndGet
+                 catchSilently (chequear mapaActual (lexer line)) mapaActual
+--                 loop (Map.empty)
 
 {-|
   catchOrPrint
@@ -87,9 +91,10 @@ promptAndGet =
   el prompt.
 -}
 catchSilently ::  TupParser -- ^ La ejecución de las funciones parser y lexer sobre un string.
+              ->  Map.Map String Symbol 
               -> IO() -- ^ La impresión del resultado de la ejecución de la función.
-catchSilently tup = C.catch (print tup) fail
-    where fail e = hPrint stderr e
+catchSilently tup old = C.catch (hPrint stdout tup >> (loop $ fst $ tup)) (fail old)
+    where fail old e = hPrint stderr e >> (loop old)
 
 
 --
@@ -119,7 +124,7 @@ chequear :: Map.Map String Symbol
 chequear map a = chequeo $ parser $ a
     where
       chequeo f = case revisarErrores map (Right f) of
-                   Right t -> t
+                   Right (m,t) -> existenErrores (m,t) (Map.toList m)
                    Left err -> error $ err
 
 revisarErrores :: (Map.Map String Symbol)
@@ -232,11 +237,57 @@ crearValor map x = case snd(x) of
                      Symbol(Just dom, Just conj) -> crearSymbol map (fst(x),Symbol(Just dom, Just conj))
                      _ -> Left "Error 0x08042FF2"
 
+
+existenErrores :: TupParser
+               -> [(String,Symbol)]
+               -> TupParser
+
+existenErrores t xs = case existeSymbol t xs of
+                         Right t -> t
+                         Left err -> error $ err
+
+existeSymbol :: TupParser
+             -> [(String,Symbol)]
+             -> Either String TupParser
+
+existeSymbol (map,ast) (x:[]) = case existeSymbol' map x of
+                                  Right m -> Right (m,ast)
+                                  Left err -> Left err
+existeSymbol (map,ast) (x:xs) = case existeSymbol' map x of
+                                  Right m -> existeSymbol (m,ast) xs
+                                  Left err -> case existeSymbol (map,ast) xs of
+                                                Right m1 -> Left err
+                                                Left err2 -> Left (err ++ "\n" ++ err2)
+
+existeSymbol' :: Map.Map String Symbol
+             -> (String,Symbol)
+             -> Either String (Map.Map String Symbol)
+
+existeSymbol' map (st,sy) = case sy of
+                       Symbol(Just (DominioID dom), Nothing) -> case Map.lookup dom map of
+                                                                  Just (Symbol(Just dom2, _)) -> Right map
+                                                                  _ -> Left ("No existe la variable " ++ dom ++ " definida como dominio")
+                       Symbol(Nothing, Just (Conjunto con (DominioID dom))) -> case Map.lookup dom map of
+                                                                                 Just (Symbol(Just dom2, _)) -> Right map
+                                                                                 _ -> Left ("No existe la variable " ++ dom ++ " definida como dominio")
+                       Symbol(Just (DominioID dom1), Just (Conjunto con (DominioID dom2))) -> if dom2 == st 
+                                                                                                 then case Map.lookup dom1 map of
+                                                                                                       Just (Symbol(Just dom2, _)) -> Right map
+                                                                                                       _ -> Left ("No existe la variable " ++ dom1 ++ " definida como dominio")           
+                                                                                                 else case Map.lookup dom1 map of
+                                                                                                        Just (Symbol(Just dom, _)) -> case Map.lookup dom2 map of 
+                                                                                                                                        Just (Symbol(Just dom3,_)) -> Right map
+                                                                                                                                        _ -> Left ("No existe la variable "++ dom2 ++" definida como dominio") 
+                                                                                                        Nothing -> case Map.lookup dom2 map of
+                                                                                                                     Just (Symbol(Just dom3,_)) -> Left ("No existe la variable " ++ dom1 ++ " definida como dominio")
+                                                                                                                     _ -> Left ("No existe la variable " ++ dom1 ++ " definida como dominio \n No existe la variable "++ dom2 ++" definida como dominio")                                                                           
+                       _ -> Right map
+ 
 {-|
                 La función @crearDominio@ intenta insertar en un mapa de símbolos
                 una nueva entrada para una variable en su definición como Dominio,
                 en caso de ya existir este valor se genera un error de contexto y en
-                caso contrario se devuelve el mapa resultante.
+                caso contrario se devuelve el mapa resultante. 
 -}
 
 crearSymbol :: Map.Map String Symbol -- ^ Mapa donde se va a intentar insertar el valor.
