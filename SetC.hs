@@ -204,7 +204,6 @@ takeType :: SetC a
          -> a
 takeType (Set x)  = head x
 
-
 {-|
   @toList set@
   

@@ -1,48 +1,3 @@
-module Interpreter (
--- * Función Principal.
-  interpreter,
-  chequeoEstructural
-) where
-
-import System.IO
-import System.Exit
-import Char
-import qualified Control.Exception as C
-import qualified Data.Map as Map
-import SetC
-import Lexer
-import Parser
-import Abstract
-
-type TupParser = (Map.Map String Symbol, AST)
-
-interpreter :: TupParser
-            -> IO()
-interpreter (map, ast) = print $ printOperations map ast
-
-printOperations :: Map.Map String Symbol
-                -> AST
-                -> String
-printOperations map (Expr e) = (show e) ++ " ==> " ++ (show $ calcularExpresion map e) ++ "\n"
-printOperations map (Secuencia (e:[])) = printOperations map (Expr e)
-printOperations map (Secuencia (e:es)) = (printOperations map (Expr e)) ++ (printOperations map (Secuencia es))
-
-calcularExpresion :: Map.Map String Symbol
-                  -> Expresion
-                  -> SetC Elemento
-calcularExpresion map (Union e1 e2) = SetC.unionSet (calcularExpresion map e1) (calcularExpresion map e2)
-calcularExpresion map (Interseccion e1 e2) = SetC.intersectSet (calcularExpresion map e1) (calcularExpresion map e2)
-calcularExpresion map (Diferencia e1 e2) = SetC.minusSet (calcularExpresion map e1) (calcularExpresion map e2)
---calcularExpresion map (Complemento e e) = SetC.complementSet (calcularExpresion e)
---calcularExpresion map (Cartesiano e e) = SetC.crossProduct (calcularExpresion e) (calcularExpresion e)
---calcularExpresion map (Partes e) = SetC.powerSet (calcularExpresion map e)
-calcularExpresion map (OpUniverso u) = evalUniverso map u
-calcularExpresion map (OpExtension ext) = evalExtension map ext
-calcularExpresion map (OpConj (Conjunto c d)) = c
-calcularExpresion map (OpId t) = takeSetC $ takeConj (map Map.! (takeStr t))
-calcularExpresion map (Asignacion t e) = calcularExpresion map e
-
-
 {-
   Los pasos son:
   Para el compilador:
@@ -104,38 +59,167 @@ en el mapa original, segun el dominio ke tienen asignado
 -}
 --chequeoDinamico
 
+module Interpreter (
+-- * Función Principal.
+  interpreter,
+  compararTipos,
+  chequeoEstructural,
+  calcularExpresion,
+) where
 
+import System.IO
+import System.Exit
+import Char
+import qualified Control.Exception as C
+import qualified Data.Map as Map
+import SetC
+import Lexer
+import Parser
+import Abstract
+
+type SymTable = Map.Map String Symbol
+type TupParser = (SymTable, AST)
+
+interpreter :: TupParser
+            -> IO()
+interpreter (map, ast) = print $ printOperations map ast
+
+printOperations :: SymTable
+                -> AST
+                -> String
+printOperations map (Expr e) = (show e) ++ " ==> " ++ (show $ calcularExpresion map e) ++ "\n"
+printOperations map (Secuencia (e:[])) = printOperations map (Expr e)
+printOperations map (Secuencia (e:es)) = (printOperations map (Expr e)) ++ (printOperations map (Secuencia es))
+
+
+
+
+
+prueba :: TupParser -> IO()
+prueba tp = case chequeoEstructural
+                    (Map.fromList 
+                            [("bar",Symbol (Just (Dominio (SetC.emptySet)),Nothing)),
+                             ("foo",Symbol (Just (Dominio (SetC.fromList [(Elem "1"), (Elem "2")])),Just (Conjunto (SetC.emptySet) (DominioID "foo")))),
+                             ("z",Symbol (Just (DominioID "bar"),Just (Conjunto (SetC.emptySet) (Dominio (SetC.fromList [(Elem "1"), (Elem "2")])))))])
+                    tp of
+                      Right _ -> print "yataaa"
+                      Left (errs, _)  -> print errs
+                    
+
+
+
+
+
+
+
+
+
+calcularExpresion :: SymTable
+                  -> Expresion
+                  -> SetC Elemento
+calcularExpresion map (Union e1 e2) = SetC.unionSet (calcularExpresion map e1) (calcularExpresion map e2)
+calcularExpresion map (Interseccion e1 e2) = SetC.intersectSet (calcularExpresion map e1) (calcularExpresion map e2)
+calcularExpresion map (Diferencia e1 e2) = SetC.minusSet (calcularExpresion map e1) (calcularExpresion map e2)
+--calcularExpresion map (Complemento e e) = SetC.complementSet (calcularExpresion e)
+--calcularExpresion map (Cartesiano e e) = SetC.crossProduct (calcularExpresion e) (calcularExpresion e)
+--calcularExpresion map (Partes e) = SetC.powerSet (calcularExpresion map e)
+calcularExpresion map (OpUniverso u) = evalUniverso map u
+calcularExpresion map (OpExtension ext) = evalExtension map ext
+calcularExpresion map (OpConj (Conjunto c d)) = c
+calcularExpresion map (OpId t) = conjuntoSetC $ takeConj (map Map.! (takeStr t))
+calcularExpresion map (Asignacion t e) = calcularExpresion map e
+
+
+
+
+
+
+chequeoEstructural :: SymTable -- ^ El mapa viejo
+                   -> TupParser -- ^ El TupParser de la linea nueva
+                   -> Either (String, SymTable) TupParser -- ^ El mapa de la nueva linea con los valores de los conjuntos colocados con las nuevas asignaciones
+chequeoEstructural old (new,(Secuencia [])) = Right (new, (Secuencia []))
+chequeoEstructural old (new,(Secuencia (e:[]))) = case chequeoEstructural' (Map.union old new) e of
+                                                    Right nmap -> Right (nmap, (Secuencia []))
+                                                    Left errs -> Left errs
+chequeoEstructural old (new,(Secuencia (e:es))) = case chequeoEstructural' (Map.union old new) e of
+                                                  Right nmap -> case chequeoEstructural old (nmap,(Secuencia es)) of
+                                                                  Right nmap2 -> Right nmap2
+                                                                  Left errs -> Left errs
+                                                  Left errs -> Left errs
+
+
+chequeoEstructural' :: SymTable -- ^ El mapa contra el que se realiza el chequeo
+                    -> Expresion -- ^ Expresion a chequear
+                    -> Either (String, SymTable) (SymTable) -- ^ El mapa resultado despues de evaluar la expresion.
+chequeoEstructural' m (Union e1 e2)
+    | compararTipos
+      (SetC.takeType $ calcularExpresion m e1)
+      (SetC.takeType $ calcularExpresion m e2) = Right m
+    | otherwise = Left ("Error de tipos en union", Map.empty)
+chequeoEstructural' m (Interseccion e1 e2)
+    | compararTipos 
+      (SetC.takeType $ calcularExpresion m e1)
+      (SetC.takeType $ calcularExpresion m e2) = Right m
+    | otherwise = Left ("Error de tipos interseccion", Map.empty)
+chequeoEstructural' m (Diferencia e1 e2)
+    | compararTipos 
+      (SetC.takeType $ calcularExpresion m e1)
+      (SetC.takeType $ calcularExpresion m e2) = Right m
+    | otherwise = Left ("Error de tipos en diferencia", Map.empty)
+chequeoEstructural' m (Cartesiano e1 e2)
+    | compararTipos 
+      (SetC.takeType $ calcularExpresion m e1)
+      (SetC.takeType $ calcularExpresion m e2) = Right m
+    | otherwise = Left ("Error de tipos en cartesiano", Map.empty)
+chequeoEstructural' m (Asignacion var e) = case chequeoEstructural' m e of
+                                             Right m -> Right (actualizarConjS (takeStr var) (calcularExpresion m e) m)
+                                             Left tuplaerror -> Left tuplaerror
+chequeoEstructural' m _ = Right m
 
 {-
-chequeoEstructural recibe dos mapas y averigua si sus tipos son equivalentes
+compararTipos recibe dos mapas y averigua si sus tipos son equivalentes
 -}
-chequeoEstructural :: Elemento
-                   -> Elemento
-                   -> Bool
-chequeoEstructural (Cto c1) (Cto c2)
+compararTipos :: Elemento
+              -> Elemento
+              -> Bool
+compararTipos (Cto c1) (Cto c2)
     | SetC.isEmpty c1 && SetC.isEmpty c2 = True
     | SetC.isEmpty c1 && tieneElementos c2 = True
     | tieneElementos c1 && SetC.isEmpty c2 = True
-    | (not $ SetC.isEmpty c1) && (not $ SetC.isEmpty c2) = chequeoEstructural (SetC.takeType c1) (SetC.takeType c2)
+    | (not $ SetC.isEmpty c1) && (not $ SetC.isEmpty c2) = compararTipos (SetC.takeType c1) (SetC.takeType c2)
     | otherwise = False
-chequeoEstructural (Lista []) (Lista ((Elem x2):es2)) = True
-chequeoEstructural (Lista ((Elem x1):es1)) (Lista []) = True
-chequeoEstructural (Lista []) (Lista []) = True
-chequeoEstructural (Lista (e1:es1)) (Lista (e2:es2)) = chequeoEstructural e1 e2
-chequeoEstructural (Elem s1) (Elem s2) = True
-chequeoEstructural _ _ = False
+compararTipos (Lista []) (Lista ((Elem x2):es2)) = True
+compararTipos (Lista ((Elem x1):es1)) (Lista []) = True
+compararTipos (Lista []) (Lista []) = True
+compararTipos (Lista (e1:es1)) (Lista (e2:es2)) = compararTipos e1 e2
+compararTipos (Elem s1) (Elem s2) = True
+compararTipos _ _ = False
 
 
-evalExtension :: Map.Map String Symbol
+evalExtension :: SymTable
               -> Ext
               -> SetC Elemento
 evalExtension map e = SetC.emptySet
 
-evalUniverso :: Map.Map String Symbol
+evalUniverso :: SymTable
              -> Univ
              -> SetC Elemento
 evalUniverso map (UniversoT (Conjunto cu d)) = cu
-evalUniverso map (UniversoDe t) = takeSetC $ takeConj (map Map.! (takeStr t))
+evalUniverso map (UniversoDe t) = conjuntoSetC $ takeConj (map Map.! (takeStr t))
+
+
+{-
+Recibe una variable que debe ser un conjunto en el symtable, y un setC a meter en el
+lugar de esa variable, sin tocar el dominio del conjunto
+-}
+actualizarConjS :: String
+                -> SetC Elemento
+                -> SymTable
+                -> SymTable
+actualizarConjS var nconj m = Map.insertWith sobreescribirConj var (Symbol (Nothing, Just (Conjunto nconj (Dominio (SetC.emptySet))))) m
+    where sobreescribirConj (Symbol (od, oc)) (Symbol (_, Just (Conjunto ncs ncd))) = case oc of
+                                                         Nothing -> (Symbol (od, Just (Conjunto ncs ncd)))
+                                                         Just (Conjunto sc d) -> (Symbol (od, Just (Conjunto ncs d)))
 
 {-|
   Función que devuelve el string envuelto por un Token cuyo constructor
@@ -162,9 +246,13 @@ takeConj :: Symbol  -- ^ /Symbol/ sobre el que se quiere su conjunto asociado.
 takeConj (Symbol (_, Just a)) = a
 takeConj (Symbol (_, Nothing)) = error $ "Error 0x08042FFD"
 
-takeSetC :: Conjunto
-         -> SetC Elemento
-takeSetC (Conjunto sc d) = sc
+conjuntoSetC :: Conjunto
+             -> SetC Elemento
+conjuntoSetC (Conjunto sc d) = sc
+
+conjuntoDom :: Conjunto
+            -> Dominio
+conjuntoDom (Conjunto sc d) = d
 
 tieneElementos :: SetC Elemento
                -> Bool

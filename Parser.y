@@ -73,12 +73,13 @@ import qualified Data.Map as Map
         simbolo                  { TkSimbolo a       }
         not                      { TkNegar a         }
 
+%right ':='
+
 %left '+' '-' '*' '%'
 %nonassoc '~'
 %nonassoc '!'
 
 %left ','
-%right ':='
 
 %%
 
@@ -287,7 +288,6 @@ constructor tup1 tup2 = case tup1 of
 construirAST :: AST -- ^ Árbol sintáctico a ser concatenado.
              -> AST -- ^ Árbol sintáctico a ser concatenado.
              -> AST -- ^ Árbol sintáctico que resulta de la concatenación de los otros AST.
-
 construirAST (Expr a) (Expr b) = Secuencia [a, b]
 construirAST (Expr a) (Secuencia b) = Secuencia ([a] ++ b)
 construirAST (Secuencia a) (Expr b) = Secuencia (a ++ [b])

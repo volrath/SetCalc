@@ -23,6 +23,7 @@ import qualified Control.Exception as C
 import qualified Data.Map as Map
 import Lexer
 import Parser
+import Interpreter
 import Abstract
 
 type TupParser = (Map.Map String Symbol, AST)
@@ -45,7 +46,9 @@ main =
            let loop = do
                  hSetBuffering stdout NoBuffering
                  line <- promptAndGet
-                 catchSilently(chequear Map.empty (lexer line))
+                 case chequeoEstructural (Map.fromList [("bar",Symbol (Just (Dominio (SetC.emptySet)),Nothing)),("foo",Symbol (Just (Dominio (SetC.fromList [(Elem "1"), (Elem "2")])),Just (Conjunto (SetC.emptySet) (DominioID "foo")))),("z",Symbol (Just (DominioID "bar"),Just (Conjunto (SetC.emptySet) (Dominio (SetC.fromList [(Elem "1"), (Elem "2")])))))]) (chequear Map.empty (lexer line)) of
+                   Right tp -> catchSilently tp
+                   Left (errs,_) -> error $ errs
                  loop
            loop
          else do
