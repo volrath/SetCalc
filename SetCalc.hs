@@ -143,22 +143,23 @@ chequear :: Map.Map String Symbol
 
 chequear map a = chequeo $ parser $ a
     where
-      chequeo f = case revisarErrores map (Right f) of
+      chequeo f@(m2,ast) = case revisarErrores map (Right f) ast of
                    Right (m,t) -> existenErrores (m,t) (Map.toList m)
                    Left err -> error $ err
 
 revisarErrores :: (Map.Map String Symbol)
                -> Either (TupParser,String) TupParser
+               -> AST
                -> Either String TupParser
-revisarErrores map map' = case map' of
+revisarErrores map map' intocable = case map' of
                             Right (map1,Secuencia (x:[])) -> case revisarErrores' (map) (Right (map1,Secuencia [x])) of
-                                                               Right (map3,ast) -> Right (map3,ast)
+                                                               Right (map3,ast) -> Right (map3,intocable)
                                                                Left (map3,err) -> Left err
                             Right (map1,Secuencia (x:xs)) -> case revisarErrores' (map) (Right (map1,Secuencia [x])) of
-                                                               Right (mapb,a) -> revisarErrores mapb (Right (Map.empty,Secuencia xs))
-                                                               Left (map3,err) -> revisarErrores map (Left ((map1,Secuencia xs),err))
+                                                               Right (mapb,a) -> revisarErrores mapb (Right (Map.empty,Secuencia xs)) intocable
+                                                               Left (map3,err) -> revisarErrores map (Left ((map1,Secuencia xs),err)) intocable
                             Right (map1,Secuencia []) -> case revisarErrores' (map) (Right (map1,Secuencia [])) of 
-                                                           Right (map3,ast) -> Right (map3,ast)
+                                                           Right (map3,ast) -> Right (map3,intocable)
                                                            Left (map3,err) -> Left err
                             Left ((maperr,asterr), err) -> case revisarErrores' map (Left ((maperr,asterr),err)) of
                                                              Right _ -> error $ "Error 0x123ABCF2"
