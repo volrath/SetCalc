@@ -1,2 +1,8 @@
 Conjuntos por intencion..........................
 Filtros, Funciones predefinidas
+Redefinir Universo de
+Terminar Complemento
+Revisar operaciones de variables con nombres de dominio diferentes, Usar EQUIVALENCIA DE NOMBRES, no estructural.
+Hacer Rango ".."
+Cambiar la presentacion de estado.
+Hacer que no se pueda olvidar un dominio si es dominio de algun conjunto

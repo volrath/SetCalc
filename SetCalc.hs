@@ -52,7 +52,7 @@ main =
                -- Se abre el archivo y se analiza
                content <- readFileOrCatch $ head args
                case content of
-                 Right parserResult -> print parserResult
+                 Right parserResult -> interpreter $ parserResult
                  Left err -> do
                               hPutStr stderr $ "Imposible abrir el archivo " ++ (head args) ++ " debido a:"
                               hPrint stderr err
@@ -132,7 +132,11 @@ readFileOrCatch fpath = catch (try fpath) fail
     where
       try f = do
         c <- readFile f
-        let parserResult = parser $ lexer c
+        let parserResult = case chequeoEstructural (chequear Map.empty (lexer c)) of
+                             Nothing -> case chequeoDinamico (chequear Map.empty (lexer c)) of
+                                          ([], st) -> (st, snd (chequear Map.empty (lexer c)))
+                                          (errs@(e:es), st) -> error errs 
+                             Just errs -> error $ errs
         return $ Right parserResult
       fail e = return (Left e)
 
