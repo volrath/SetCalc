@@ -38,7 +38,7 @@ data Symbol = Symbol (Maybe Dominio, Maybe Conjunto) -- ^ Un símbolo puede ser u
   de calculadora /SetCalc/
 -}
 data Dominio = Dominio (SetC Elemento) -- ^ Dominio
-             | DominioID String
+             | DominioID Token
              deriving (Eq, Show)
 
 {-|

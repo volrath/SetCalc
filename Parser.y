@@ -93,7 +93,7 @@ Decl  : Lista_id es dominio Dominio                                  { insertarD
       | Lista_id tiene dominio Dominio                               { insertarConjunto $1 $4 }
 
 Dominio : ConjuntoDom                                                { Dominio $1 }
-        | id                                                         { DominioID (takeStr $1) }
+        | id                                                         { DominioID $1 }
         | universal                                                  { Dominio (elUniverso) }
 
 ConjuntoDom : '{' '}'                                                { (SetC.emptySet)  }
@@ -359,7 +359,7 @@ crearDominio map (k, v) = case  Map.lookup (takeStr k) (transformarMapa map) of
       Just (Symbol (Nothing, Just con)) -> Right (Map.union (Map.singleton k (Symbol (Just (takeDom v), Just con))) map)
       Nothing -> Right (Map.insert k (Symbol (Just (takeDom v), Nothing)) map)
     where 
-      pos = takePosIdStr k
+      pos = takePos k
 
 {-|
                 La función @crearConjunto@ intenta insertar en un mapa de símbolos
@@ -379,7 +379,7 @@ crearConjunto map (k, v) = case  Map.lookup (takeStr k) (transformarMapa map) of
       Nothing -> Right (Map.insert k (Symbol (Nothing , Just (takeConj v))) map)
 
     where 
-      pos = takePosIdStr k
+      pos = takePos k
 
 {-|
   La función @actualizarMapa@ recibe un Mapa de símbolos
@@ -419,7 +419,7 @@ actualizarMapa' key map = case Map.lookup (takeStr key) (transformarMapa map) of
                            Just (Symbol (_, Nothing)) -> Left ("La variable " ++ takeStr key ++ " no esta definida como conjunto y es usada en la linea "++ show(fst(pos)) ++ " y en la columna "++ show(snd(pos)) ++ ". \n")
                            Nothing -> Left ("La variable " ++ takeStr key ++ " no esta definida como conjunto y es usada en la linea "++ show(fst(pos)) ++ " y en la columna "++ show(snd(pos)) ++ ". \n")
     where
-      pos = takePosIdStr key
+      pos = takePos key
       
 {-|
   Devuelve el dominio asociado a un /Symbol/
@@ -563,14 +563,6 @@ takeStr (TkId pos s) = s
 -}
 ejecutarInstruccion :: Inst -> (Map.Map k a, AST)
 ejecutarInstruccion a = (Map.empty, Secuencia [])
-
-{-|
-  Devuelve la posición ocupada por Tokens cuyo
-  constructor sea TkStr o TkId
--}
-takePosIdStr :: Token -> (Int,Int)
-takePosIdStr (TkStr pos s) = pos
-takePosIdStr (TkId pos s) = pos
 
 {-|
   Devuelve la posición ocupada por un Token

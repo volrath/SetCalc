@@ -94,7 +94,6 @@ printOperations map (Secuencia []) = ""
 printOperations map (Secuencia (e:[])) = printOperations map (Expr e)
 printOperations map (Secuencia (e:es)) = (printOperations map (Expr e)) ++ (printOperations map (Secuencia es))
 
-
 chequeoDinamico :: TupParser
                 -> SymTable
 chequeoDinamico (mapa, (Secuencia exprs)) = foldl chequeoDinamico' mapa exprs
@@ -128,15 +127,13 @@ chequeoDinamico' mapa _ = mapa
 --                                                                                      True ->
 
 
-
-
 calcularExpresion :: SymTable
                   -> Expresion
                   -> SetC Elemento
 calcularExpresion map1 (Union e1 e2) = SetC.unionSet (calcularExpresion map1 e1) (calcularExpresion map1 e2)
 calcularExpresion map1 (Interseccion e1 e2) = SetC.intersectSet (calcularExpresion map1 e1) (calcularExpresion map1 e2)
 calcularExpresion map1 (Diferencia e1 e2) = SetC.minusSet (calcularExpresion map1 e1) (calcularExpresion map1 e2)
---calcularExpresion map1 (Complemento e) = SetC.complementSet (calcularExpresion map1 e) 
+--calcularExpresion map1 (Complemento e) =  evalComplemento map1 (calcularExpresion map1 e)
 calcularExpresion map1 (Cartesiano e1 e2) = SetC.mapSet Cto (SetC.crossProduct (calcularExpresion map1 e1) (calcularExpresion map1 e2))
 calcularExpresion map1 (Partes e) = SetC.mapSet Cto (SetC.powerSet (calcularExpresion map1 e))
 calcularExpresion map1 (OpUniverso u) = evalUniverso map1 u
@@ -302,6 +299,9 @@ evalUniverso :: SymTable
 evalUniverso map (UniversoT (Conjunto cu d)) = cu
 evalUniverso map (UniversoDe t) = dominioSetC map $ conjuntoDom$ takeConj (map Map.! (takeStr t))
 
+
+--evalComplemento :: Symtable
+--                -> SetC Elemento
 {-
 Recibe un
 -}
@@ -378,7 +378,7 @@ conjuntoDom (Conjunto sc d) = d
 -}
 dominioSetC :: SymTable -> Dominio -> SetC Elemento
 dominioSetC _ (Dominio sc) = sc
-dominioSetC mapa (DominioID dom) = dominioSetC mapa $ takeDom $ mapa Map.! dom
+dominioSetC mapa (DominioID dom) = dominioSetC mapa $ takeDom $ mapa Map.! (takeStr dom)
 
 
 sonElementos :: [Elemento]

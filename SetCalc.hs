@@ -282,23 +282,23 @@ existeSymbol' :: Map.Map String Symbol
              -> Either String (Map.Map String Symbol)
 
 existeSymbol' map (st,sy) = case sy of
-                       Symbol(Just (DominioID dom), Nothing) -> case Map.lookup dom map of
+                       Symbol(Just (DominioID dom), Nothing) -> case Map.lookup (takeStr dom) map of
                                                                   Just (Symbol(Just dom2, _)) -> Right map
-                                                                  _ -> Left ("No existe la variable " ++ dom ++ " definida como dominio")
-                       Symbol(Nothing, Just (Conjunto con (DominioID dom))) -> case Map.lookup dom map of
+                                                                  _ -> Left ("No existe la variable " ++ takeStr(dom) ++ " definida como dominio y es usada en la linea "++show(fst(takePos(dom)))++ " y en la columna "++show(snd(takePos(dom))))
+                       Symbol(Nothing, Just (Conjunto con (DominioID dom))) -> case Map.lookup (takeStr dom) map of
                                                                                  Just (Symbol(Just dom2, _)) -> Right map
-                                                                                 _ -> Left ("No existe la variable " ++ dom ++ " definida como dominio")
-                       Symbol(Just (DominioID dom1), Just (Conjunto con (DominioID dom2))) -> if dom2 == st 
-                                                                                                 then case Map.lookup dom1 map of
+                                                                                 _ -> Left ("No existe la variable " ++ takeStr(dom) ++ " definida como dominio y es usada en la linea "++show(fst(takePos(dom)))++ " y en la columna "++show(snd(takePos(dom))))
+                       Symbol(Just (DominioID dom1), Just (Conjunto con (DominioID dom2))) -> if (takeStr(dom2)) == st 
+                                                                                                 then case Map.lookup (takeStr dom1) map of
                                                                                                        Just (Symbol(Just dom2, _)) -> Right map
-                                                                                                       _ -> Left ("No existe la variable " ++ dom1 ++ " definida como dominio")           
-                                                                                                 else case Map.lookup dom1 map of
-                                                                                                        Just (Symbol(Just dom, _)) -> case Map.lookup dom2 map of 
+                                                                                                       _ -> Left ("No existe la variable " ++ takeStr(dom1) ++ " definida como dominio y es usada en la linea "++ show(fst(takePos(dom1)))++ " y en la columna "++show(snd(takePos(dom1))))
+                                                                                                 else case Map.lookup (takeStr dom1) map of
+                                                                                                        Just (Symbol(Just dom, _)) -> case Map.lookup (takeStr dom2) map of 
                                                                                                                                         Just (Symbol(Just dom3,_)) -> Right map
-                                                                                                                                        _ -> Left ("No existe la variable "++ dom2 ++" definida como dominio") 
-                                                                                                        Nothing -> case Map.lookup dom2 map of
-                                                                                                                     Just (Symbol(Just dom3,_)) -> Left ("No existe la variable " ++ dom1 ++ " definida como dominio")
-                                                                                                                     _ -> Left ("No existe la variable " ++ dom1 ++ " definida como dominio \n No existe la variable "++ dom2 ++" definida como dominio")                                                                           
+                                                                                                                                        _ -> Left ("No existe la variable " ++ takeStr(dom2) ++ " definida como dominio y es usada en la linea "++show(fst(takePos(dom2)))++ " y en la columna "++show(snd(takePos(dom2))))
+                                                                                                        Nothing -> case Map.lookup (takeStr dom2) map of
+                                                                                                                     Just (Symbol(Just dom3,_)) -> Left ("No existe la variable " ++ takeStr(dom1) ++ " definida como dominio y es usada en la linea "++show(fst(takePos(dom1)))++ " y en la columna "++show(snd(takePos(dom1))))
+                                                                                                                     _ -> Left ("No existe la variable " ++ takeStr(dom1) ++ " definida como dominio y es usada en la linea "++show(fst(takePos(dom1)))++ " y en la columna "++show(snd(takePos(dom1)))++ "\n No existe la variable " ++ takeStr(dom2) ++ " definida como dominio y es usada en la linea "++show(fst(takePos(dom2)))++ " y en la columna "++show(snd(takePos(dom2))))
                        _ -> Right map
  
 {-|
@@ -313,9 +313,9 @@ crearSymbol :: Map.Map String Symbol -- ^ Mapa donde se va a intentar insertar e
              -> Either String (Map.Map String Symbol) -- ^ Devuelve el mapa resultante en caso de no haber errores de contexto y un String con el error en caso contrario.
 
 crearSymbol map (k, v) = case  Map.lookup (k) (map) of
-      Just (Symbol (Just dom, Just con)) -> Left ("Existe una doble declaracion en la linea , en la columna , ya existe un dominio con el nombre de variable " ++ k ++ ".\n")
-      Just (Symbol (Just dom, Nothing)) -> Left ("Existe una doble declaracion en la linea , en la columna , ya existe un dominio con el nombre de variable " ++ k ++ ".\n")
-      Just (Symbol (Nothing, Just con)) -> Left ("Existe una doble declaracion en la linea , en la columna , ya existe un conjunto con el nombre de variable " ++ k ++ ".\n")
+      Just (Symbol (Just dom, Just con)) -> Left ("Existe una doble declaracion en el comando introducido, ya existe un dominio y un conjunto con el nombre de variable " ++ k ++ ".\n")
+      Just (Symbol (Just dom, Nothing)) -> Left ("Existe una doble declaracion en el comando introducido, ya existe un dominio con el nombre de variable " ++ k ++ ".\n")
+      Just (Symbol (Nothing, Just con)) -> Left ("Existe una doble declaracion en el comando introducido, ya existe un conjunto con el nombre de variable " ++ k ++ ".\n")
       Nothing -> Right (Map.insert k v map)
                       
 {-|
@@ -330,8 +330,8 @@ crearDominio :: Map.Map String Symbol -- ^ Mapa donde se va a intentar insertar 
              -> Either String (Map.Map String Symbol) -- ^ Devuelve el mapa resultante en caso de no haber errores de contexto y un String con el error en caso contrario.
 
 crearDominio map (k, v) = case  Map.lookup (k) (map) of
-      Just (Symbol (Just dom, Just con)) -> Left ("Existe una doble declaracion en la linea , en la columna , ya existe un dominio con el nombre de variable " ++ k ++ ".\n")
-      Just (Symbol (Just dom, Nothing)) -> Left ("Existe una doble declaracion en la linea , en la columna , ya existe un dominio con el nombre de variable " ++ k ++ ".\n")
+      Just (Symbol (Just dom, Just con)) -> Left ("Existe una doble declaracion en el comando introducido, ya existe un dominio con el nombre de variable " ++ k ++ ".\n")
+      Just (Symbol (Just dom, Nothing)) -> Left ("Existe una doble declaracion en el comando introducido, ya existe un dominio con el nombre de variable " ++ k ++ ".\n")
       Just (Symbol (Nothing, Just con)) -> Right (Map.union (Map.singleton k (Symbol (Just (takeDom v), Just con))) map)
       Nothing -> Right (Map.insert k (Symbol (Just (takeDom v), Nothing)) map)
 
@@ -347,8 +347,8 @@ crearConjunto :: Map.Map String Symbol -- ^ Mapa donde se va a intentar insertar
               -> Either String (Map.Map String Symbol) -- ^ Devuelve el mapa resultante en caso de no haber errores de contexto y un String con el error en caso contrario.
 
 crearConjunto map (k, v) = case  Map.lookup (k) (map) of
-      Just (Symbol (Just dom, Just con)) -> Left ("Existe una doble declaracion en la linea , en la columna , ya existe un conjunto con el nombre de variable " ++ k ++ ".\n")
-      Just (Symbol (Nothing, Just con)) -> Left ("Existe una doble declaracion en la linea , en la columna , ya existe un conjunto con el nombre de variable " ++ k ++ ".\n")
+      Just (Symbol (Just dom, Just con)) -> Left ("Existe una doble declaracion en el comando introducido, ya existe un conjunto con el nombre de variable " ++ k ++ ".\n")
+      Just (Symbol (Nothing, Just con)) -> Left ("Existe una doble declaracion en el comando introducido, ya existe un conjunto con el nombre de variable " ++ k ++ ".\n")
       Just (Symbol (Just dom, Nothing)) -> Right (Map.union (Map.singleton k (Symbol (Just dom , Just (takeConj v)))) map)
       Nothing -> Right (Map.insert k (Symbol (Nothing , Just (takeConj v))) map)
 
@@ -456,3 +456,48 @@ takeStr :: Token -> String
 takeStr (TkStr pos s) = s
 takeStr (TkId pos s) = s
 
+{-|
+  Devuelve la posición ocupada por un Token
+-}
+takePos :: Token -> (Int,Int)
+takePos (TkEs a) = a
+takePos (TkDe a) = a
+takePos (TkTiene a) = a
+takePos (TkDominio a) = a
+takePos (TkUniverso a) = a
+takePos (TkUniversal a) = a
+takePos (TkALlave a) = a
+takePos (TkCLlave a) = a
+takePos (TkACorchete a) = a
+takePos (TkCCorchete a) = a
+takePos (TkAParentesis a) = a
+takePos (TkCParentesis a) = a
+takePos (TkComa a) = a
+takePos (TkPunto a) = a
+takePos (TkPuntoPunto a) = a
+takePos (TkBarra a) = a
+takePos (TkFlecha a) = a
+takePos (TkAsignacion a) = a
+takePos (TkUnion a) = a
+takePos (TkInterseccion a) = a
+takePos (TkDiferencia a) = a
+takePos (TkComplemento a) = a
+takePos (TkCartesiano a) = a
+takePos (TkPartes a) = a
+takePos (TkMiembro a) = a
+takePos (TkVacio a) = a
+takePos (TkSubconjunto a) = a
+takePos (TkEstado a) = a
+takePos (TkOlvidar a) = a
+takePos (TkTodo a) = a
+takePos (TkFin a) = a
+takePos (TkIgual a) = a
+takePos (TkMenor a) = a
+takePos (TkMayor a) = a
+takePos (TkMayuscula a) = a
+takePos (TkLetra a) = a
+takePos (TkDigito a) = a
+takePos (TkSimbolo a) = a
+takePos (TkNegar a) = a
+takePos (TkId pos a) = pos
+takePos (TkStr pos a) = pos
