@@ -1,7 +1,5 @@
---1. Listar todos los errores de contexto. (DENTRO DE PARSER) 2
---2. Revisar las variables de los generadores. 1
-3. Main 3
---4. Makefile
-5. Hacer errores de sintaxis bonitos. 1000
---6. Instrucciones especiales. 4
-7. Mover los errores de contexto al main. 5
+1. Hacer errores de sintaxis bonitos.
+2. Revisar las variables en las declaraciones de conjuntos.
+3. Devolver las posiciones de los errores de contexto. (Usando Tokens en vez de Strings o usando monadic parser)
+4. Permitir que se almacenen el Data.Map en el prompt. (OPCIONAL)
+

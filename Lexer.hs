@@ -1,7 +1,18 @@
 {-# OPTIONS -cpp #-}
 {-# LINE 1 "Lexer.x" #-}
 {-|
-  Primera aproximacion del Lexer.
+  /Analizador Lexicográfico/
+  
+  Traductores e Interpretadores CI3725
+  
+  
+  05-38675 Kristoffer Pantic <sktdude@gmail.com>
+  
+  04-36723 Daniel Barreto N. <daniel@ac.labf.usb.ve>
+  
+  Programa interpretado por /alex/ para generar un automata
+  que reconozca lexicográficamente el lenguaje de la cálculadora
+  /SetCalc/
 -}
 module Lexer (
               -- * Tipo abstracto
@@ -38,7 +49,7 @@ alex_deflt :: Array Int Int
 alex_deflt = listArray (0,134) [-1,-1,-1,4,4,-1,-1,8,8,10,10,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1]
 
 alex_accept = listArray (0::Int,134) [[],[],[(AlexAccSkip)],[(AlexAccSkip)],[(AlexAccSkip)],[(AlexAcc (alex_action_24))],[(AlexAcc (alex_action_2))],[],[],[],[],[(AlexAcc (alex_action_3))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_4))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_5))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_6))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_7))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_8))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_9))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_10))],[(AlexAcc (alex_action_11))],[(AlexAcc (alex_action_12))],[(AlexAcc (alex_action_13))],[(AlexAcc (alex_action_14))],[(AlexAcc (alex_action_15))],[(AlexAcc (alex_action_16))],[(AlexAcc (alex_action_17))],[(AlexAcc (alex_action_18))],[(AlexAcc (alex_action_19))],[(AlexAcc (alex_action_20))],[(AlexAcc (alex_action_36))],[(AlexAcc (alex_action_21))],[],[(AlexAcc (alex_action_22))],[(AlexAcc (alex_action_23))],[(AlexAcc (alex_action_25))],[(AlexAcc (alex_action_26))],[(AlexAcc (alex_action_27))],[(AlexAcc (alex_action_28))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_29))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_30))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_31))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_32))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_33))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_34))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_35))],[],[(AlexAcc (alex_action_37))],[(AlexAcc (alex_action_38))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_39))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_40))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_41))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_42))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))],[(AlexAcc (alex_action_43))]]
-{-# LINE 76 "Lexer.x" #-}
+{-# LINE 87 "Lexer.x" #-}
 {-|
   El tipo de datos @Token@ que contiene los /tokens/
   devueltos por el analizador lexicográfico generado.

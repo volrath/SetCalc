@@ -19,12 +19,10 @@ import SetC
   donde todos los nodos son expresiones del lenguaje de la
   calculadora /SetCalc/.
 -}
-data AST = Expr Expresion -- * Nodo expresión
-         | Secuencia [Expresion] -- * Secuencia de expresiones
+data AST = Expr Expresion -- ^ Nodo expresión
+         | Secuencia [Expresion] -- ^ Secuencia de expresiones
          deriving (Eq, Show)
 
-{-|
--}
 data Symbol = Symbol (Maybe Dominio, Maybe Conjunto)
             deriving (Eq,Show)
 

@@ -1,24 +1,22 @@
 {
 {-|
-  /Analizador Sint√°ctico y Tabla de S√≠mbolos para la Calculadora/
+  /Analizador Sint·ctico y Tabla de SÌ≠mbolos para la Calculadora/
 
 
 	Traductores e Interpretadores CI3725
 
-	integrantes
+        Grupo 9
 
+	Integrantes:
+        Daniel Barreto - 04-36723
+        Kristoffer Pantic - 05-38675
 
-	Este m√≥dulo, desarrollado en Happy, implanta un Analizador
-	Sint√°ctico para la calculadora vista en clase, y un conjunto
-	de rutinas Haskell para manipular una Tabla de S√≠mbolos simple.
-	Sirve como ejemplo de uso tanto para Happy como para Haddock e
-	ilustra los conceptos de tipos recursivos en Haskell necesarios
-	para la Parte Dos del Proyecto.
+	Este mÛdulo, desarrollado en Happy, implanta un Analizador
+	Sint·ctico para el lenguaje SetCalc.
 
 -}
 module Parser (
-	-- * Funciones exportadas.
-	-- ** Analizador Sint√°ctico con An√°lisis de Contexto Est√°tico.
+	-- ** Analizador Sint·ctico con An·lisis de Contexto Est·tico.
 	parser
 ) where
 
@@ -93,7 +91,7 @@ Prog   : Decl '.'                                                    { detectarE
 
 Decl  : Lista_id es dominio Dominio                                  { insertarDominio $1 $4 }
       | Lista_id tiene dominio Dominio                               { insertarConjunto $1 $4 }
-      | Lista_id tiene dominio id                                    { insertarConjunto $1 (Dominio (SetC.fromList [Ident (Var (takeStr $4))])) }
+      | Lista_id tiene dominio id                                    { insertarConjunto $1 (Dominio (SetC.fromList [Ident (takeStr $4)])) }
 
 Dominio : ConjuntoDom                                                { Dominio $1 }
         | universal                                                  { Dominio (crearUniverso) }
@@ -118,8 +116,8 @@ ListaArregloDom : '[' ']'                                            { [Lista []
                 | ListaArregloDom ',' ListaArregloDom                { doList $1 $3 }
                 | '[' ListaArregloDom ']'                            { [Lista $2] }
 
-Lista_id : id                                                        { [Var (takeStr $1)] }
-         | Lista_id ',' id                                           { $1 ++ [Var (takeStr $3)] }
+Lista_id : id                                                        { [takeStr $1] }
+         | Lista_id ',' id                                           { $1 ++ [takeStr $3] }
 
 ConjuntoCto : '{' '}'                                                { (SetC.emptySet) }
             | '{' Alfa_ran '}'                                       { (SetC.fromList $2) }
@@ -142,7 +140,7 @@ ListaArreglo : '[' ']'                                               { [Lista []
              | '[' ListaArreglo ']'                                  { [Lista $2] }
              | '[' ListaConj ']'                                     { [Lista $2] }
 
-Asig     : id ':=' Expr                                            { Asignacion (Var (takeStr $1)) $3 }
+Asig     : id ':=' Expr                                              { Asignacion (takeStr $1) $3 }
 
 Inst     : estado                                                    { Estado }
          | olvidar todo                                              { OlvidarTodo }
@@ -150,7 +148,7 @@ Inst     : estado                                                    { Estado }
          | fin                                                       { Fin }
 
 Expr     : Conjunto                                                  { OpConj $1 }
-         | id                                                        { OpId (Var (takeStr $1)) }
+         | id                                                        { OpId (takeStr $1) }
          | Universo                                                  { OpUniverso $1 }
          | Extension                                                 { OpExtension $1}
          | Expr '+' Expr                                             { Union $1 $3 }
@@ -163,12 +161,12 @@ Expr     : Conjunto                                                  { OpConj $1
          | Asig                                                      { $1 }
 
 Universo : universo                                                  { UniversoT (Conjunto (crearUniverso)) }
-         | universo de id                                            { UniversoDe (Var (takeStr $3)) }
+         | universo de id                                            { UniversoDe (takeStr $3) }
 
 Extension : '{' ConjuntoId '|' LGenerador ',' LFiltro '}'            { ConjuntoExt $2 $4 $6 }
           | '{' ConjuntoId '|' LGenerador '}'                        { ConjuntoExt $2 $4 [] }
 
-ConjuntoId : id                                                      { (SetC.fromList [(Ident (Var (takeStr $1)))]) }
+ConjuntoId : id                                                      { (SetC.fromList [Ident (takeStr $1)]) }
            | ListaArrAlfaId                                          { (SetC.fromList $1) }
            | ListaConjAlfaId                                         { (SetC.fromList $1) }
 
@@ -185,7 +183,7 @@ ListaConjAlfaId : '{' Lista_id '}'                                   { [Cto (Set
 LGenerador : Generador                                               { [$1] }
            | LGenerador ',' Generador                                { $1 ++ [$3] }
 
-Generador : id '<-' id                                               { Gen (Var (takeStr $1)) (Var (takeStr $3)) }
+Generador : id '<-' id                                               { Gen (takeStr $1)(takeStr $3) }
 
 LFiltro : Filtro                                                     { [$1] }
         | LFiltro ',' Filtro                                         { $1 ++ [$3] }
@@ -203,47 +201,55 @@ Filtro : Elemento '==' Elemento                                      { FilIgual 
        | vacio '(' Expr ')'                                          { Vacio $3 }
        | subconjunto '(' Conjunto ',' Conjunto ')'                   { SubConjunto $3 $5 }
 
-Elemento : id                                                        { Ident (Var (takeStr $1)) }
+Elemento : id                                                        { Ident (takeStr $1) }
          | str                                                       { Elem (takeStr $1) }
 
 {
 
-{-
-		La funci√≥n @insertVar@ es de uso interno en la acci√≥n
-		sem√°ntica asociada a las producciones que reconocen una
-		lista de declaraciones de variables, para tomar el identificador
-		'i' y la expresi√≥n 'e' que tendr√° asociada e insertarlos en
-		la Tabla de S√≠mbolos.
-
-		Si la Tabla de S√≠mbolos ya contiene el identificador, eso
-		constituye un Error Est√°tico que se reporta inmediatamente,
-		abortando la ejecuci√≥n del Analizador Sint√°ctico.
-
-		Si la Tabla de S√≠mbolos no contiene el identificador, se utiliza
-		la primitiva de inserci√≥n sobre Tablas de S√≠mbolo, teniendo cuidado
-		de "envolver" la expresi√≥n con el constructor Just del tipo
-		Maybe Expr.
-
+{-|
+                El tipo @TupParser@ se definiÛ para evitar cÛdigo sumamente largo
+                e ilegible.
 -}
-type TupParser = (Map.Map Var Symbol, AST)
 
-parser :: [Token] -> TupParser
+type TupParser = (Map.Map String Symbol, AST)
+
+{-|
+		La funciÛn @parser@ analiza los resultados generados por la funciÛn elNoParser
+		y devuelve los errores generados en caso de haberlos y en caso contrario
+                devuelve el Data.Map de todas las variables declaradas y el ·rbol
+                sint·ctivo generado por las expresiones del programa.
+-}
+
+
+parser :: [Token] -- ^ Lista de tokens que recibe del analizador lexicogr·fico
+       -> TupParser -- ^ Tupla que contiene el Data.Map y el ·rbol sint·ctico.
 parser toks = case elNoParser toks of
                 Right tup -> tup
                 Left (map,errs) -> error $ errs
 
+{-|
+		La funciÛn @syntaxError@ es la funciÛn de error del analizador
+                sint·ctico generado por Happy y que permite manejar los errores
+                de sintaxis de manera elegante y mostrar el token que generÛ el error
+                y aquellos que le siguen.
+-}
 
-syntaxError :: [Token] -> a
+syntaxError :: [Token] -- ^ Lista de tokens que comienza con el token que generÛ el error seguido por los que no han sido analizados.
+            -> a -- ^ Error que devuelve el token donde ocurriÛ el error, su lÌnea, su columna y los 3 tokens que le siguen.
 syntaxError (t:ts) = error $ 
                        "Error de sintaxis en el Token " ++ (show t) ++ "\n" ++
                        "Seguido de: " ++ (unlines $ map show $ take 3 ts)
 
 {-|
-  constructor
-  
-  FunciÛn que concatena listas encapsuladas en tuplas.
+                La funciÛn @constructor@ concatena las tuplas generadas por las
+                declaraciones y expresiones del programa uniendo los mapas de simbolos
+                y revisando los errores de contexto en el proceso, adem·s guardando 
+                los errores generados en todo el proceso de construcciÛn.
 -}
-constructor :: Either ((Map.Map Var Symbol), String) TupParser -> Either String TupParser -> Either ((Map.Map Var Symbol), String) TupParser
+constructor :: Either ((Map.Map String Symbol), String) TupParser -- ^ Tupla que puede ser TupParser en caso de no haber errores o en caso de haber errores de contexto,una tupla que contiene el Data.Map generado hasta el momento y un string con todos los errores concatenados.
+            -> Either String TupParser -- ^ Es TupParser en caso de que la expresion o declaraciÛn analizada no tenga errores de contexto o un String en caso contrario.
+            -> Either ((Map.Map String Symbol), String) TupParser -- ^ Tupla que puede ser TupParser en caso de no haber errores o en caso de haber errores de contexto,una tupla que contiene el Data.Map generado hasta el momento y un string con todos los errores concatenados.
+
 constructor tup1 tup2 = case tup1 of
                           Right (m, a) -> case tup2 of 
                                             Right (n, b) -> case Map.null (chequearAsignacion b) of
@@ -272,17 +278,42 @@ constructor tup1 tup2 = case tup1 of
                                                                                    Left err2 -> Left (m, errs++ "\n" ++ err2 ++ "\n" ++ err)
                                             Left err -> Left (m, errs ++ "\n" ++ err)
                                          
+
+{-|
+                La funciÛn @construirAST@ concatena dos ·rboles sint·cticos
+                AST generados por el analizador lexicogr·fico.
+-}
                                                
-construirAST :: AST -> AST -> AST
+construirAST :: AST -- ^ ¡rbol sint·ctico a ser concatenado.
+             -> AST -- ^ ¡rbol sint·ctico a ser concatenado.
+             -> AST -- ^ ¡rbol sint·ctico que resulta de la concatenaciÛn de los otros AST.
+
 construirAST (Expr a) (Expr b) = Secuencia [a, b]
 construirAST (Expr a) (Secuencia b) = Secuencia ([a] ++ b)
 construirAST (Secuencia a) (Expr b) = Secuencia (a ++ [b])
 construirAST (Secuencia a) (Secuencia b) = Secuencia (a ++ b)
 
-unirMapas :: Map.Map Var Symbol -> Map.Map Var Symbol -> Either String (Map.Map Var Symbol)
+{-|
+                La funciÛn @unirMapas@ realiza la uniÛn de dos mapas
+                de sÌmbolos mientras revisa si hay errores de contexto.
+-}
+
+unirMapas :: Map.Map String Symbol -- ^ Mapa de sÌmbolos a ser unido.
+          -> Map.Map String Symbol -- ^ Mapa de sÌmbolos a ser unido.
+          -> Either String (Map.Map String Symbol) -- ^ Devuelve el resultado de la uniÛn de los dos mapas de sÌmbolos en caso de no haber errores y un String con los errores en caso contrario.
+
 unirMapas map1 map2 = unirMapas' map1 (Map.toList map2)
 
-unirMapas' :: Map.Map Var Symbol -> [(Var, Symbol)] -> Either String (Map.Map Var Symbol)
+{-|
+                La funciÛn @unirMapas'@ realiza la inserciÛn
+                de la lista de tuplas conformadas por variables y sÌmbolos
+                en un mapa de sÌmbolos revisando si hay errores de contexto.
+-}
+
+unirMapas' :: Map.Map String Symbol -- ^ Mapa de sÌmbolos a la que se van a insertar los valores.
+           -> [(String, Symbol)] -- ^ Lista de tuplas formadas por variables y sÌmbolos que ser· insertada en el mapa en caso de no haber errores de contexto.
+           -> Either String (Map.Map String Symbol) -- ^ Devuelve el resultado de la inserciÛn de los valores en el mapa en caso de no haber errores, en caso contrario se devuelve un String con los errores.
+
 unirMapas' map1 [] = Right map1
 unirMapas' map1 (x:[]) = crearValor map1 x
 unirMapas' map1 (x:xs) = case mapR of
@@ -295,30 +326,72 @@ unirMapas' map1 (x:xs) = case mapR of
     where
       mapR = crearValor map1 x
 
-crearValor :: Map.Map Var Symbol -> (Var, Symbol) -> Either String (Map.Map Var Symbol)
+{-|
+                La funciÛn @crearValor@ decide, en funciÛn del valor introducido
+                si se va a generar una entrada en el mapa para la variable
+                como Conjunto o como Dominio y los genera e inserta en el mapa en caso de no haber
+                errores de contexto y en caso contrario devuelve un String con
+                los errores.
+-}
+
+crearValor :: Map.Map String Symbol -- ^ Mapa de sÌmbolos donde se va a insertar el valor.
+           -> (String, Symbol) -- ^ Tupla que puede tener un valor de Conjunto o de Dominio y que se va a intentar insertar en el mapa.
+           -> Either String (Map.Map String Symbol) -- ^ Devuelve un String en caso de haber errores y un mapa de sÌmbolos con el valor nuevo introducido en caso contrario.
+
 crearValor map x = case snd(x) of
                      Symbol(Just dom, _) -> crearDominio map (fst(x),Symbol(Just dom, Nothing))
                      Symbol(_, Just conj) -> crearConjunto map (fst(x),Symbol(Nothing, Just conj))
                      _ -> Left "Error 0x08042FF2"
                       
+{-|
+                La funciÛn @crearDominio@ intenta insertar en un mapa de sÌmbolos
+                una nueva entrada para una variable en su definiciÛn como Dominio,
+                en caso de ya existir este valor se genera un error de contexto y en
+                caso contrario se devuelve el mapa resultante.
+-}
 
-crearDominio :: Map.Map Var Symbol -> (Var, Symbol) -> Either String (Map.Map Var Symbol)
+crearDominio :: Map.Map String Symbol -- ^ Mapa donde se va a intentar insertar el valor.
+             -> (String, Symbol) -- ^ Entrada que se intentar· insertar en el mapa de sÌmbolos.
+             -> Either String (Map.Map String Symbol) -- ^ Devuelve el mapa resultante en caso de no haber errores de contexto y un String con el error en caso contrario.
+
 crearDominio map (k, v) =
     case  Map.lookup k map of
-      Just (Symbol (Just dom, Just con)) -> Left ("Ya existe un dominio con el nombre de variable " ++ ((\(Var s) -> s) k) ++ ".")
-      Just (Symbol (Just dom, Nothing)) -> Left ("Ya existe un dominio con el nombre de variable " ++ ((\(Var s) -> s) k) ++ ".")
+      Just (Symbol (Just dom, Just con)) -> Left ("Ya existe un dominio con el nombre de variable " ++  k ++ ".")
+      Just (Symbol (Just dom, Nothing)) -> Left ("Ya existe un dominio con el nombre de variable " ++ k ++ ".")
       Just (Symbol (Nothing, Just con)) -> Right (Map.union (Map.singleton k (Symbol (Just (takeDom v), Just con))) map)
       Nothing -> Right (Map.insert k (Symbol (Just (takeDom v), Nothing)) map)
 
-crearConjunto :: Map.Map Var Symbol -> (Var, Symbol) -> Either String (Map.Map Var Symbol)
+{-|
+                La funciÛn @crearConjunto@ intenta insertar en un mapa de sÌmbolos
+                una nueva entrada para una variable en su definiciÛn como Conjunto,
+                en caso de ya existir este valor se genera un error de contexto y en
+                caso contrario se devuelve el mapa resultante.
+-}
+
+crearConjunto :: Map.Map String Symbol -- ^ Mapa donde se va a intentar insertar el valor.
+              -> (String, Symbol) -- ^ Entrada que intentar· insertar en el mapa de sÌmbolos.
+              -> Either String (Map.Map String Symbol) -- ^ Devuelve el mapa resultante en caso de no haber errores de contexto y un String con el error en caso contrario.
+
 crearConjunto map (k, v) =
     case  Map.lookup k map of
-      Just (Symbol (Just dom, Just con)) -> Left ("Ya existe un conjunto con el nombre de variable " ++ ((\(Var s) -> s) k) ++ ".")
-      Just (Symbol (Nothing, Just con)) -> Left ("Ya existe un conjunto con el nombre de variable " ++ ((\(Var s) -> s) k) ++ ".")
+      Just (Symbol (Just dom, Just con)) -> Left ("Ya existe un conjunto con el nombre de variable " ++  k ++ ".")
+      Just (Symbol (Nothing, Just con)) -> Left ("Ya existe un conjunto con el nombre de variable " ++ k ++ ".")
       Just (Symbol (Just dom, Nothing)) -> Right (Map.union (Map.singleton k (Symbol (Just dom , Just (takeConj v)))) map)
       Nothing -> Right (Map.insert k (Symbol (Nothing , Just (takeConj v))) map)
 
-actualizarMapa :: Map.Map Var Symbol -> [(Var, Symbol)] -> Either ((Map.Map Var Symbol), String) (Map.Map Var Symbol)
+{-|
+                La funciÛn @actualizarMapa@ recibe un Mapa de sÌmbolos
+                y una lista de tuplas de entradas que representan 
+                las variables usadas en las asignaciones y en los generadores
+                que se encuentran en las expresiones del programa
+                y mediante el uso de la funciÛn actualizarMapa' se
+                genera un error en caso de haberse usado una variable no
+                definida y se devuelve el mapa resultante en caso contrario.
+-}
+
+actualizarMapa :: Map.Map String Symbol -- ^ Mapa generado por las declaraciones del programa hasta el momento.
+               -> [(String, Symbol)]  -- ^ Lista de tuplas que fueron usadas en asignaciones y en generadores.
+               -> Either ((Map.Map String Symbol), String) (Map.Map String Symbol) -- ^ Devuelve una tupla con el mapa generado hasta el momento con las asignaciones que han sido aceptadas acompaÒada de un String con los errores en caso de haber errores de contexto, en caso contrario devuelve el mapa resultante de realizar las asignaciones.
 actualizarMapa map1 ((m2key, m2value):[]) = case actualizarMapa' m2key map1 of
                                              Right res -> Right res
                                              Left err -> Left (map1,err)
@@ -330,38 +403,36 @@ actualizarMapa map1 ((m2key, m2value):m2s) = case actualizarMapa' m2key map1 of
                                                            Right res1 -> Left (res1,err)
                                                            Left (m,err1) -> Left (m,err++err1)
 
-actualizarMapa' :: Var -> Map.Map Var Symbol -> Either String (Map.Map Var Symbol)
+actualizarMapa' :: String -> Map.Map String Symbol -> Either String (Map.Map String Symbol)
 actualizarMapa' key map = case Map.lookup key map of
                            Just (Symbol (_, Just con)) -> Right map
-                           Just (Symbol (_, Nothing)) -> Left ("La variable " ++ ((\(Var s) -> s) key) ++ " no esta definida.")
-                           Nothing -> Left ("La variable " ++ ((\(Var s) -> s) key) ++ " no esta definida.")
+                           Just (Symbol (_, Nothing)) -> Left ("La variable " ++ key ++ " no esta definida.")
+                           Nothing -> Left ("La variable " ++ key ++ " no esta definida.")
 
 takeDom :: Symbol -> Dominio
 takeDom (Symbol (Just a, _)) = a
-takeDom (Symbol (Nothing, _)) = error $ "hola, no deberia pasar"
+takeDom (Symbol (Nothing, _)) = error $ "Error 0x08042FFA"
 
 takeConj :: Symbol -> Conjunto
 takeConj (Symbol (_, Just a)) = a
-takeConj (Symbol (_, Nothing)) = error $ "hola, no deberia pasar"
+takeConj (Symbol (_, Nothing)) = error $ "Error 0x08042FFD"
 
--- --------------------------------
--- INSERTAR COSAS
-insertarDominio :: [Var] -> Dominio -> Either String (Map.Map Var Symbol)
+insertarDominio :: [String] -> Dominio -> Either String (Map.Map String Symbol)
 insertarDominio [] dom = Right Map.empty
 insertarDominio (x:xs) dom = case unirMapas' (Map.singleton x (Symbol (Just dom, Nothing))) (map (hacerTuplaDom dom) xs) of
                                Right map1 -> Right map1
                                Left errs -> Left  errs
 
-hacerTuplaDom :: Dominio -> Var -> (Var, Symbol)
+hacerTuplaDom :: Dominio -> String -> (String, Symbol)
 hacerTuplaDom dom x = (x, (Symbol (Just dom, Nothing)))
 
-insertarConjunto :: [Var] -> Dominio -> Either String (Map.Map Var Symbol)
+insertarConjunto :: [String] -> Dominio -> Either String (Map.Map String Symbol)
 insertarConjunto [] conj = Right Map.empty
 insertarConjunto (x:xs) conj = case unirMapas' (Map.singleton x (Symbol (Nothing, Just (Conjunto (SetC.emptySet))))) (map (hacerTuplaConj) xs) of
                                  Right map1 -> Right map1
                                  Left errs -> Left errs
 
-hacerTuplaConj :: Var -> (Var, Symbol)
+hacerTuplaConj :: String -> (String, Symbol)
 hacerTuplaConj x = (x, (Symbol (Nothing, Just (Conjunto (SetC.emptySet)))))
 
 existeConjunto var map = case Map.lookup var map of
@@ -370,13 +441,13 @@ existeConjunto var map = case Map.lookup var map of
                            Nothing -> Nothing
 
 
-chequearAsignacion :: AST -> Map.Map Var Symbol
+chequearAsignacion :: AST -> Map.Map String Symbol
 chequearAsignacion (Secuencia []) = Map.empty
 chequearAsignacion (Expr exp) = chequearAsignacion' exp Map.empty
 chequearAsignacion (Secuencia (x:[])) = chequearAsignacion' x Map.empty
 chequearAsignacion (Secuencia (x:xs)) = Map.union (chequearAsignacion' x Map.empty) (chequearAsignacion (Secuencia xs))
 
-chequearAsignacion' :: Expresion -> Map.Map Var Symbol -> Map.Map Var Symbol
+chequearAsignacion' :: Expresion -> Map.Map String Symbol -> Map.Map String Symbol
 chequearAsignacion' exp map = case exp of
                                Union x y -> Map.union (chequearAsignacion' x map) (chequearAsignacion' y map)
                                Interseccion x y -> Map.union (chequearAsignacion' x map) (chequearAsignacion' y map)
@@ -389,18 +460,16 @@ chequearAsignacion' exp map = case exp of
                                _ -> Map.empty
 
 
-chequearGenerador :: [Generador] -> Map.Map Var Symbol
+chequearGenerador :: [Generador] -> Map.Map String Symbol
 chequearGenerador [] = Map.empty
 chequearGenerador ((Gen x y):xs) = Map.union (Map.singleton y (Symbol (Nothing, Just (Conjunto (SetC.emptySet))))) (chequearGenerador xs)
 
-detectarErrores :: ((Either String (Map.Map Var Symbol)), AST) -> Either String TupParser
+detectarErrores :: ((Either String (Map.Map String Symbol)), AST) -> Either String TupParser
 detectarErrores (map,ast) = case map of
                               Right map1 -> Right (map1,ast)
                               Left err -> Left err
                               
 
--- --------------
--- FUNCIONES RANDOM
 doList [(Lista a)] [(Lista b)] = [Lista a, Lista b]
 doCto [(Cto a)] [(Cto b)] = [Cto a, Cto b]
 
@@ -410,8 +479,6 @@ takeStr :: Token -> String
 takeStr (TkStr pos s) = s
 takeStr (TkId pos s) = s
 
--- -------------------
--- Instrucciones
 ejecutarInstruccion :: Inst -> (Map.Map k a, AST)
 ejecutarInstruccion a = (Map.empty, Secuencia [])
 }

@@ -25,7 +25,7 @@ import Lexer
 import Parser
 import Abstract
 
-type TupParser = (Map.Map Var Symbol, AST)
+type TupParser = (Map.Map String Symbol, AST)
 
 {-|
    Función principal.
