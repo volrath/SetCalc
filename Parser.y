@@ -92,8 +92,8 @@ Prog   : Decl '.'                                                    { ($1, Secu
        | Inst '.'                                                    { ejecutarInstruccion $1 }
 
 Decl  : Lista_id es dominio Dominio                                  { insertarDominio $1 $4 }
-      | Lista_id tiene dominio Dominio                               { Map.empty }--insertarConjunto $1 $4 }
-      | Lista_id tiene dominio id                                    { Map.empty }--insertarConjunto $1 (Dominio (SetC.fromList [Ident (Var (takeStr $4))])) }
+      | Lista_id tiene dominio Dominio                               { insertarConjunto $1 $4 }
+      | Lista_id tiene dominio id                                    { insertarConjunto $1 (Dominio (SetC.fromList [Ident (Var (takeStr $4))])) }
 
 Dominio : ConjuntoDom                                                { Dominio $1 }
         | universal                                                  { Dominio (crearUniverso) }
@@ -250,25 +250,40 @@ unirMapas map1 map2 = unirMapas' map1 (Map.toList map2)
 
 unirMapas' :: Map.Map Var Symbol -> [(Var, Symbol)] -> Map.Map Var Symbol
 unirMapas' map1 [] = map1
-unirMapas' map1 (x:[]) = crearDominio map1 x
+unirMapas' map1 (x:[]) = crearValor map1 x
 unirMapas' map1 (x:xs) = Map.union mapR (unirMapas' mapR xs)
     where
-      mapR = crearDominio map1 x
+      mapR = crearValor map1 x
+
+crearValor :: Map.Map Var Symbol -> (Var, Symbol) -> Map.Map Var Symbol
+crearValor map x = case snd(x) of
+                     Symbol(Just dom, _) -> crearDominio map (fst(x),Symbol(Just dom, Nothing))
+                     Symbol(_, Just conj) -> crearConjunto map (fst(x),Symbol(Nothing, Just conj))
+                     _ -> error $ "Algo salio terriblemente mal"
+                      
 
 crearDominio :: Map.Map Var Symbol -> (Var, Symbol) -> Map.Map Var Symbol
 crearDominio map (k, v) =
     case  Map.lookup k map of
-      Just (Symbol (Just dom, Just con)) -> error $ "ERROR!!!"
-      Just (Symbol (Just dom, Nothing)) -> error $ "ERrror!."
+      Just (Symbol (Just dom, Just con)) -> error $ "ERRORDom!!!"
+      Just (Symbol (Just dom, Nothing)) -> error $ "ERrrorDom!."
       Just (Symbol (Nothing, Just con)) -> Map.union (Map.singleton k (Symbol (Just (takeDom v), Just con))) map
       Nothing -> Map.insert k (Symbol (Just (takeDom v), Nothing)) map
+
+crearConjunto :: Map.Map Var Symbol -> (Var, Symbol) -> Map.Map Var Symbol
+crearConjunto map (k, v) =
+    case  Map.lookup k map of
+      Just (Symbol (Just dom, Just con)) -> error $ "ERRORConj!!!"
+      Just (Symbol (Nothing, Just con)) -> error $ "ERrrorConj!."
+      Just (Symbol (Just dom, Nothing)) -> Map.union (Map.singleton k (Symbol (Just dom , Just (takeConj v)))) map
+      Nothing -> Map.insert k (Symbol (Nothing , Just (takeConj v))) map
 
 actualizarMapa :: Map.Map Var Symbol -> [(Var, Symbol)] -> Map.Map Var Symbol
 actualizarMapa map1 ((m2key, m2value):[]) = actualizarMapa' m2key map1
 actualizarMapa map1 ((m2key, m2value):m2s) = Map.union (actualizarMapa' m2key map1) (actualizarMapa map1 m2s)
 
 actualizarMapa' :: Var -> Map.Map Var Symbol -> Map.Map Var Symbol
-actualizarMapa' key map = case Map.member key map of
+actualizarMapa' key map = case Map.lookup key map of
                            Just (Symbol (_, Just con)) -> map
                            Just (Symbol (_, Nothing)) -> error $ "La variable " ++ ((\(Var s) -> s) key) ++ " no esta definida."
                            Nothing -> error $ "La variable " ++ ((\(Var s) -> s) key) ++ " no esta definida."
@@ -277,17 +292,25 @@ takeDom :: Symbol -> Dominio
 takeDom (Symbol (Just a, _)) = a
 takeDom (Symbol (Nothing, _)) = error $ "hola, no deberia pasar"
 
+takeConj :: Symbol -> Conjunto
+takeConj (Symbol (_, Just a)) = a
+takeConj (Symbol (_, Nothing)) = error $ "hola, no deberia pasar"
+
 -- --------------------------------
 -- INSERTAR COSAS
 insertarDominio :: [Var] -> Dominio -> Map.Map Var Symbol
 insertarDominio [] dom = Map.empty
-insertarDominio (x:xs) dom = unirMapas' (Map.singleton x (Symbol (Just dom, Nothing))) (map (hacerTupla dom) xs)
+insertarDominio (x:xs) dom = unirMapas' (Map.singleton x (Symbol (Just dom, Nothing))) (map (hacerTuplaDom dom) xs)
 
-hacerTupla :: Dominio -> Var -> (Var, Symbol)
-hacerTupla dom x = (x, (Symbol (Just dom, Nothing)))
+hacerTuplaDom :: Dominio -> Var -> (Var, Symbol)
+hacerTuplaDom dom x = (x, (Symbol (Just dom, Nothing)))
 
-insertarConjunto (x:[]) dom = Map.singleton x (Symbol (Nothing, (Just (Conjunto (SetC.emptySet)))))
-insertarConjunto (x:xs) dom = Map.union (Map.singleton x (Symbol (Nothing, Nothing))) (insertarDominio xs dom)
+insertarConjunto :: [Var] -> Dominio -> Map.Map Var Symbol
+insertarConjunto [] conj = Map.empty
+insertarConjunto (x:xs) conj = unirMapas' (Map.singleton x (Symbol (Nothing, Just (Conjunto (SetC.emptySet))))) (map (hacerTuplaConj) xs)
+
+hacerTuplaConj :: Var -> (Var, Symbol)
+hacerTuplaConj x = (x, (Symbol (Nothing, Just (Conjunto (SetC.emptySet)))))
 
 existeConjunto var map = case Map.lookup var map of
                            Just (a, Just cto) -> Just (a, Just cto)
@@ -296,6 +319,7 @@ existeConjunto var map = case Map.lookup var map of
 
 
 chequearAsignacion :: AST -> Map.Map Var Symbol
+chequearAsignacion (Secuencia []) = Map.empty
 chequearAsignacion (Expr exp) = chequearAsignacion' exp Map.empty
 chequearAsignacion (Secuencia (x:[])) = chequearAsignacion' x Map.empty
 chequearAsignacion (Secuencia (x:xs)) = Map.union (chequearAsignacion' x Map.empty) (chequearAsignacion (Secuencia xs))

@@ -1,0 +1,7 @@
+1. Listar todos los errores de contexto.
+2. Revisar las variables de los generadores.
+3. Main
+4. Makefile
+5. Hacer errores de sintaxis bonitos.
+6. Instrucciones especiales.
+7. Mover los errores de contexto al main.
