@@ -109,7 +109,7 @@ instance Show Expresion where
   TAD /Ext/:
   Tipo abstracto de datos que modela un conjunto definido por extensión
 -}
-data Ext = ConjuntoExt (SetC Elemento) [Generador] [Filtro] -- ^ Conjunto definido por extensión.
+data Ext = ConjuntoExt Elemento [Generador] [Filtro] -- ^ Conjunto definido por extensión.
          deriving (Eq)
 instance Show Ext where
     show (ConjuntoExt c gs fs) = "{" ++ (show c) ++ " | " ++ (show gs) ++ ", " ++ (show fs) ++ "}"

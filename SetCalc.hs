@@ -440,12 +440,12 @@ actualizarMapa' (key,sym) map = case sym of
                                   Symbol (Just dom, Nothing) -> case Map.lookup (key) (map) of
                                                                   Just (Symbol (Just dom2,_)) -> Right map
                                                                   Just (Symbol (Nothing,_)) -> Left ("La variable " ++ key ++ " no esta definida como dominio y es usada en el comando introducido. \n")
-                                                                  Nothing -> Left ("La variable " ++ key ++ " no esta definida como dominio y es usada en la linea y en en el comando introducido. \n")
+                                                                  Nothing -> Left ("La variable " ++ key ++ " no esta definida como dominio y es usada en en el comando introducido. \n")
 
                                   Symbol (Nothing, Just conj) -> case Map.lookup (key) (map) of
                                                                    Just (Symbol (_, Just con)) -> Right map
                                                                    Just (Symbol (_, Nothing)) -> Left ("La variable " ++ key ++ " no esta definida como conjunto y es usada en el comando introducido. \n")
-                                                                   Nothing -> Left ("La variable " ++ key ++ " no esta definida como conjunto y es usada en la linea y en en el comando introducido. \n")
+                                                                   Nothing -> Left ("La variable " ++ key ++ " no esta definida como conjunto y es usada en el comando introducido. \n")
                                   _ -> error $ "Error 0xABF563C"
       
 chequearAsignacion :: AST -- ^ AST a analizar
@@ -472,7 +472,7 @@ chequearAsignacion' exp map = case exp of
                                Cartesiano x y -> Map.union (chequearAsignacion' x map) (chequearAsignacion' y map)
                                Partes x -> Map.union map (chequearAsignacion' x map)
                                Complemento x -> Map.union map (chequearAsignacion' x map)
-                               OpExtension (ConjuntoExt set gens fils) -> Map.union map (chequearGenerador gens)
+                               OpExtension (ConjuntoExt set gens fils) -> Map.union map (chequearGenerador set gens map fils)
                                Asignacion var x -> Map.union (Map.insert (takeStr var) (Symbol (Nothing, Just (Conjunto (SetC.emptySet) (Dominio (SetC.emptySet))))) map) (chequearAsignacion' x map)
                                OpId var -> Map.insert (takeStr var) (Symbol (Nothing, Just (Conjunto (SetC.emptySet) (Dominio (SetC.emptySet))))) map
                                OpUniverso(UniversoDe var) -> Map.insert (takeStr var) (Symbol (Just (Dominio (SetC.emptySet)),Nothing)) map
@@ -484,10 +484,162 @@ chequearAsignacion' exp map = case exp of
   este mapa luego será constrastado contra el mapa de símbolos
   original que se ha parseado.
 -}
-chequearGenerador :: [Generador] -- ^ Lista de generadores  
-                  -> Map.Map String Symbol -- ^ Mapa generado con las variables de los lados derechos de los generadores.
-chequearGenerador [] = Map.empty
-chequearGenerador ((Gen x y):xs) = Map.union (Map.singleton (takeStr y) (Symbol (Nothing, Just (Conjunto (SetC.emptySet) (Dominio (SetC.emptySet)))))) (chequearGenerador xs)
+chequearGenerador :: Elemento
+                  -> [Generador] -- ^ Lista de generadores  
+                  -> SymTable
+                  -> [Filtro]
+                  -> SymTable -- ^ Mapa generado con las variables de los lados derechos de los generadores.
+chequearGenerador x [Gen dum con] map fils = case x of 
+                                           Tupla ((Ident x1), (Ident x2)) -> if dum == (takeStr x1)
+                                                                             then Map.union (Map.singleton (takeStr con) (Symbol (Nothing, Just (Conjunto (SetC.emptySet) (Dominio (SetC.emptySet)))))) (revisarFiltros map x fils)
+                                                                             else if dum == (takeStr x2)
+                                                                                  then Map.union (Map.singleton (takeStr con) (Symbol (Nothing, Just (Conjunto (SetC.emptySet) (Dominio (SetC.emptySet)))))) (revisarFiltros map x fils)
+                                                                                  else Map.union (Map.union  (Map.singleton (takeStr con) (Symbol (Nothing, Just (Conjunto (SetC.emptySet) (Dominio (SetC.emptySet))))))  (Map.singleton (dum) (Symbol (Nothing, Just (Conjunto (SetC.emptySet) (Dominio (SetC.emptySet))))))) (revisarFiltros map x fils)
+                                           Ident var -> if dum == (takeStr var)
+                                                        then Map.union (Map.singleton (takeStr con) (Symbol (Nothing, Just (Conjunto (SetC.emptySet) (Dominio (SetC.emptySet)))))) (revisarFiltros map x fils)
+                                                        else Map.union (Map.union  (Map.singleton (takeStr con) (Symbol (Nothing, Just (Conjunto (SetC.emptySet) (Dominio (SetC.emptySet))))))  (Map.singleton (dum) (Symbol (Nothing, Just (Conjunto (SetC.emptySet) (Dominio (SetC.emptySet))))))) (revisarFiltros map x fils)
+                                           _ -> error $ "Error 0xBAFC21D3"
+chequearGenerador x (gen:xs) map fils  = Map.union (chequearGenerador x [gen] map fils) (chequearGenerador x xs map fils)
+
+
+revisarFiltros :: SymTable
+               -> Elemento
+               -> [Filtro]
+               -> SymTable
+revisarFiltros map x [] = Map.empty
+revisarFiltros map x [fil] = case x of 
+                                  Tupla ((Ident x1),(Ident x2)) -> case fil of
+                                                                     FilIgual (Ident e1) (Ident e2) -> if (takeStr x1) == (takeStr e1)
+                                                                                                       then if (takeStr x2) == (takeStr e2)
+                                                                                                            then Map.empty
+                                                                                                            else Map.singleton (takeStr e2) (Symbol (Nothing, Just (Conjunto (SetC.emptySet) (Dominio (SetC.emptySet)))))
+                                                                                                       else if (takeStr x2) == (takeStr e1)
+                                                                                                            then if (takeStr x1) == (takeStr e2)
+                                                                                                                 then Map.empty
+                                                                                                                 else Map.singleton (takeStr e2) (Symbol (Nothing, Just (Conjunto (SetC.emptySet) (Dominio (SetC.emptySet)))))
+                                                                                                            else if ((takeStr x1) == (takeStr e2)) || ((takeStr x2) == (takeStr e2))
+                                                                                                                 then Map.singleton (takeStr e1) (Symbol (Nothing, Just (Conjunto (SetC.emptySet) (Dominio (SetC.emptySet)))))
+                                                                                                                 else Map.union (Map.singleton (takeStr e1) (Symbol (Nothing, Just (Conjunto (SetC.emptySet) (Dominio (SetC.emptySet)))))) (Map.singleton (takeStr e2) (Symbol (Nothing, Just (Conjunto (SetC.emptySet) (Dominio (SetC.emptySet))))))
+                                                                     FilIgual (Ident e1) (Elem e2) -> if ((takeStr x1)==(takeStr e1))||((takeStr x2)==(takeStr e1))
+                                                                                                      then Map.empty
+                                                                                                      else Map.singleton (takeStr e1) (Symbol (Nothing, Just (Conjunto (SetC.emptySet) (Dominio (SetC.emptySet)))))
+                                                                     FilIgual (Elem e2) (Ident e1) -> if ((takeStr x1)==(takeStr e1))||((takeStr x2)==(takeStr e1))
+                                                                                                      then Map.empty
+                                                                                                      else Map.singleton (takeStr e1) (Symbol (Nothing, Just (Conjunto (SetC.emptySet) (Dominio (SetC.emptySet)))))
+                                                                     FilMenor (Ident e1) (Ident e2) -> if (takeStr x1) == (takeStr e1)
+                                                                                                       then if (takeStr x2) == (takeStr e2)
+                                                                                                            then Map.empty
+                                                                                                            else Map.singleton (takeStr e2) (Symbol (Nothing, Just (Conjunto (SetC.emptySet) (Dominio (SetC.emptySet)))))
+                                                                                                       else if (takeStr x2) == (takeStr e1)
+                                                                                                            then if (takeStr x1) == (takeStr e2)
+                                                                                                                 then Map.empty
+                                                                                                                 else Map.singleton (takeStr e2) (Symbol (Nothing, Just (Conjunto (SetC.emptySet) (Dominio (SetC.emptySet)))))
+                                                                                                            else if ((takeStr x1) == (takeStr e2)) || ((takeStr x2) == (takeStr e2))
+                                                                                                                 then Map.singleton (takeStr e1) (Symbol (Nothing, Just (Conjunto (SetC.emptySet) (Dominio (SetC.emptySet)))))
+                                                                                                                 else Map.union (Map.singleton (takeStr e1) (Symbol (Nothing, Just (Conjunto (SetC.emptySet) (Dominio (SetC.emptySet)))))) (Map.singleton (takeStr e2) (Symbol (Nothing, Just (Conjunto (SetC.emptySet) (Dominio (SetC.emptySet))))))
+                                                                     FilMenor (Ident e1) (Elem e2) -> if ((takeStr x1)==(takeStr e1))||((takeStr x2)==(takeStr e1))
+                                                                                                      then Map.empty
+                                                                                                      else Map.singleton (takeStr e1) (Symbol (Nothing, Just (Conjunto (SetC.emptySet) (Dominio (SetC.emptySet)))))
+                                                                     FilMenor (Elem e2) (Ident e1) -> if ((takeStr x1)==(takeStr e1))||((takeStr x2)==(takeStr e1))
+                                                                                                      then Map.empty
+                                                                                                      else Map.singleton (takeStr e1) (Symbol (Nothing, Just (Conjunto (SetC.emptySet) (Dominio (SetC.emptySet)))))
+                                                                     FilMayor (Ident e1) (Ident e2) -> if (takeStr x1) == (takeStr e1)
+                                                                                                       then if (takeStr x2) == (takeStr e2)
+                                                                                                            then Map.empty
+                                                                                                            else Map.singleton (takeStr e2) (Symbol (Nothing, Just (Conjunto (SetC.emptySet) (Dominio (SetC.emptySet)))))
+                                                                                                       else if (takeStr x2) == (takeStr e1)
+                                                                                                            then if (takeStr x1) == (takeStr e2)
+                                                                                                                 then Map.empty
+                                                                                                                 else Map.singleton (takeStr e2) (Symbol (Nothing, Just (Conjunto (SetC.emptySet) (Dominio (SetC.emptySet)))))
+                                                                                                            else if ((takeStr x1) == (takeStr e2)) || ((takeStr x2) == (takeStr e2))
+                                                                                                                 then Map.singleton (takeStr e1) (Symbol (Nothing, Just (Conjunto (SetC.emptySet) (Dominio (SetC.emptySet)))))
+                                                                                                                 else Map.union (Map.singleton (takeStr e1) (Symbol (Nothing, Just (Conjunto (SetC.emptySet) (Dominio (SetC.emptySet)))))) (Map.singleton (takeStr e2) (Symbol (Nothing, Just (Conjunto (SetC.emptySet) (Dominio (SetC.emptySet))))))
+                                                                     FilMayor (Ident e1) (Elem e2) -> if ((takeStr x1)==(takeStr e1))||((takeStr x2)==(takeStr e1))
+                                                                                                      then Map.empty
+                                                                                                      else Map.singleton (takeStr e1) (Symbol (Nothing, Just (Conjunto (SetC.emptySet) (Dominio (SetC.emptySet)))))
+                                                                     FilMayor (Elem e2) (Ident e1) -> if ((takeStr x1)==(takeStr e1))||((takeStr x2)==(takeStr e1))
+                                                                                                      then Map.empty
+                                                                                                      else Map.singleton (takeStr e1) (Symbol (Nothing, Just (Conjunto (SetC.emptySet) (Dominio (SetC.emptySet)))))                                                                    
+                                                                     FilMayuscula (Ident e1) -> if ((takeStr x1)==(takeStr e1))||((takeStr x2)==(takeStr e1))
+                                                                                                then Map.empty
+                                                                                                else Map.singleton (takeStr e1) (Symbol (Nothing, Just (Conjunto (SetC.emptySet) (Dominio (SetC.emptySet)))))
+                                                                     FilLetra (Ident e1) -> if ((takeStr x1)==(takeStr e1))||((takeStr x2)==(takeStr e1))
+                                                                                            then Map.empty
+                                                                                            else Map.singleton (takeStr e1) (Symbol (Nothing, Just (Conjunto (SetC.emptySet) (Dominio (SetC.emptySet)))))
+                                                                     FilDigito (Ident e1) -> if ((takeStr x1)==(takeStr e1))||((takeStr x2)==(takeStr e1))
+                                                                                             then Map.empty
+                                                                                             else Map.singleton (takeStr e1) (Symbol (Nothing, Just (Conjunto (SetC.emptySet) (Dominio (SetC.emptySet)))))
+                                                                     FilSimbolo (Ident e1) -> if ((takeStr x1)==(takeStr e1))||((takeStr x2)==(takeStr e1))
+                                                                                              then Map.empty
+                                                                                              else Map.singleton (takeStr e1) (Symbol (Nothing, Just (Conjunto (SetC.emptySet) (Dominio (SetC.emptySet)))))
+                                                                     FilNot fil2 -> revisarFiltros map x [fil2]
+                                                                     Miembro (Ident e1) a -> if ((takeStr x1)==(takeStr e1))||((takeStr x2)==(takeStr e1))
+                                                                                             then Map.empty
+                                                                                             else Map.singleton (takeStr e1) (Symbol (Nothing, Just (Conjunto (SetC.emptySet) (Dominio (SetC.emptySet)))))
+                                                                     Vacio (e) -> chequearAsignacion' e map
+                                                                     _ -> Map.empty
+                                  Ident var ->  case fil of 
+                                                  FilIgual (Ident e1) (Ident e2) -> if (takeStr var) == (takeStr e1)
+                                                                                    then if (takeStr var) == (takeStr e2)
+                                                                                         then Map.empty
+                                                                                         else Map.singleton (takeStr e2) (Symbol (Nothing, Just (Conjunto (SetC.emptySet) (Dominio (SetC.emptySet)))))
+                                                                                    else if (takeStr var) == (takeStr e2)
+                                                                                         then Map.singleton (takeStr e1) (Symbol (Nothing, Just (Conjunto (SetC.emptySet) (Dominio (SetC.emptySet)))))
+                                                                                         else Map.union (Map.singleton (takeStr e1) (Symbol (Nothing, Just (Conjunto (SetC.emptySet) (Dominio (SetC.emptySet)))))) (Map.singleton (takeStr e2) (Symbol (Nothing, Just (Conjunto (SetC.emptySet) (Dominio (SetC.emptySet))))))
+                                                  FilIgual (Ident e1) (Elem e2) -> if (takeStr var)==(takeStr e1)
+                                                                                   then Map.empty
+                                                                                   else Map.singleton (takeStr e1) (Symbol (Nothing, Just (Conjunto (SetC.emptySet) (Dominio (SetC.emptySet)))))
+                                                  FilIgual (Elem e2) (Ident e1) -> if (takeStr var)==(takeStr e1)
+                                                                                   then Map.empty
+                                                                                   else Map.singleton (takeStr e1) (Symbol (Nothing, Just (Conjunto (SetC.emptySet) (Dominio (SetC.emptySet)))))
+                                                  FilMenor (Ident e1) (Ident e2) -> if (takeStr var) == (takeStr e1)
+                                                                                    then if (takeStr var) == (takeStr e2)
+                                                                                         then Map.empty
+                                                                                         else Map.singleton (takeStr e2) (Symbol (Nothing, Just (Conjunto (SetC.emptySet) (Dominio (SetC.emptySet)))))
+                                                                                    else if (takeStr var) == (takeStr e2)
+                                                                                         then Map.singleton (takeStr e1) (Symbol (Nothing, Just (Conjunto (SetC.emptySet) (Dominio (SetC.emptySet)))))
+                                                                                         else Map.union (Map.singleton (takeStr e1) (Symbol (Nothing, Just (Conjunto (SetC.emptySet) (Dominio (SetC.emptySet)))))) (Map.singleton (takeStr e2) (Symbol (Nothing, Just (Conjunto (SetC.emptySet) (Dominio (SetC.emptySet))))))
+                                                  FilMenor (Ident e1) (Elem e2) -> if (takeStr var)==(takeStr e1)
+                                                                                   then Map.empty
+                                                                                   else Map.singleton (takeStr e1) (Symbol (Nothing, Just (Conjunto (SetC.emptySet) (Dominio (SetC.emptySet)))))
+                                                  FilMenor (Elem e2) (Ident e1) -> if (takeStr var)==(takeStr e1)
+                                                                                   then Map.empty
+                                                                                   else Map.singleton (takeStr e1) (Symbol (Nothing, Just (Conjunto (SetC.emptySet) (Dominio (SetC.emptySet)))))
+                                                  FilMayor (Ident e1) (Ident e2) -> if (takeStr var) == (takeStr e1)
+                                                                                    then if (takeStr var) == (takeStr e2)
+                                                                                         then Map.empty
+                                                                                         else Map.singleton (takeStr e2) (Symbol (Nothing, Just (Conjunto (SetC.emptySet) (Dominio (SetC.emptySet)))))
+                                                                                    else if (takeStr var) == (takeStr e2)
+                                                                                         then Map.singleton (takeStr e1) (Symbol (Nothing, Just (Conjunto (SetC.emptySet) (Dominio (SetC.emptySet)))))
+                                                                                         else Map.union (Map.singleton (takeStr e1) (Symbol (Nothing, Just (Conjunto (SetC.emptySet) (Dominio (SetC.emptySet)))))) (Map.singleton (takeStr e2) (Symbol (Nothing, Just (Conjunto (SetC.emptySet) (Dominio (SetC.emptySet))))))
+                                                  FilMayor (Ident e1) (Elem e2) -> if (takeStr var)==(takeStr e1)
+                                                                                   then Map.empty
+                                                                                   else Map.singleton (takeStr e1) (Symbol (Nothing, Just (Conjunto (SetC.emptySet) (Dominio (SetC.emptySet)))))
+                                                  FilMayor (Elem e2) (Ident e1) -> if (takeStr var)==(takeStr e1)
+                                                                                   then Map.empty
+                                                                                   else Map.singleton (takeStr e1) (Symbol (Nothing, Just (Conjunto (SetC.emptySet) (Dominio (SetC.emptySet)))))
+                                                  FilMayuscula (Ident e1) -> if (takeStr var)==(takeStr e1)
+                                                                             then Map.empty
+                                                                             else Map.singleton (takeStr e1) (Symbol (Nothing, Just (Conjunto (SetC.emptySet) (Dominio (SetC.emptySet)))))
+                                                  FilLetra (Ident e1) -> if (takeStr var)==(takeStr e1)
+                                                                         then Map.empty
+                                                                         else Map.singleton (takeStr e1) (Symbol (Nothing, Just (Conjunto (SetC.emptySet) (Dominio (SetC.emptySet)))))
+                                                  FilDigito (Ident e1) -> if (takeStr var)==(takeStr e1)
+                                                                          then Map.empty
+                                                                          else Map.singleton (takeStr e1) (Symbol (Nothing, Just (Conjunto (SetC.emptySet) (Dominio (SetC.emptySet)))))
+                                                  FilSimbolo (Ident e1) -> if (takeStr var)==(takeStr e1)
+                                                                           then Map.empty
+                                                                           else Map.singleton (takeStr e1) (Symbol (Nothing, Just (Conjunto (SetC.emptySet) (Dominio (SetC.emptySet)))))
+                                                  FilNot fil2 -> revisarFiltros map x [fil2]
+                                                  Miembro (Ident e1) a -> if (takeStr var)==(takeStr e1)
+                                                                          then Map.empty
+                                                                          else Map.singleton (takeStr e1) (Symbol (Nothing, Just (Conjunto (SetC.emptySet) (Dominio (SetC.emptySet)))))
+                                                  Vacio (e) -> chequearAsignacion' e map
+                                                  _ -> Map.empty
+                                  _ -> error $ "Error 0x1235ABCF"
+
+revisarFiltros map x (fil:fils) = Map.union (revisarFiltros map x [fil]) (revisarFiltros map x fils)
+                                                                    
 
 {-|
   Devuelve el dominio asociado a un /Symbol/
