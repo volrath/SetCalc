@@ -87,7 +87,6 @@ loop mapaActual = do
 
 loop' :: SymTable -> String -> IO()
 loop' mapaActual linea = do
-  print $ chequear mapaActual (lexer linea) -- tp
   (errs, st) <- return $ chequeoDinamico tp
   interpreter (st, snd tp)
   loop $ st
