@@ -24,6 +24,7 @@ import Lexer
 import SetC
 import Abstract
 import Char
+import List
 import qualified Data.Map as Map
 }
 
@@ -105,12 +106,12 @@ LAlfa : str                                                          { [Elem (ta
 
 ListaConjDom : '{' '}'                                               { [Cto (SetC.emptySet)] }
              | '{' LAlfa '}'                                         { [Cto (SetC.fromList $2)] }
-             | ListaConjDom ',' ListaConjDom                         { doCto $1 $3 }
+             | ListaConjDom ',' ListaConjDom                         { $1 ++ $3 }
              | '{' ListaConjDom '}'                                  { [Cto (SetC.fromList $2)] }
 
 ListaArregloDom : '[' ']'                                            { [Lista []] }
                 | '[' LAlfa ']'                                      { [Lista $2] }
-                | ListaArregloDom ',' ListaArregloDom                { doList $1 $3 }
+                | ListaArregloDom ',' ListaArregloDom                { List.union $1 $3 }
                 | '[' ListaArregloDom ']'                            { [Lista $2] }
 
 Lista_id : id                                                        { [$1] }
@@ -127,13 +128,13 @@ Alfa_ran : str                                                       { [Elem (ta
 
 ListaConj : '{' '}'                                                  { [Cto (SetC.emptySet)] }
           | '{' Alfa_ran '}'                                         { [Cto (SetC.fromList $2)] }
-          | ListaConj ',' ListaConj                                  { doCto $1 $3 }
+          | ListaConj ',' ListaConj                                  { $1 ++ $3 }
           | '{' ListaConj '}'                                        { [Cto (SetC.fromList $2)] }
           | '{' ListaArreglo '}'                                     { [Cto (SetC.fromList $2)] }
 
 ListaArreglo : '[' ']'                                               { [Lista []] }
              | '[' Alfa_ran ']'                                      { [Lista $2] }
-             | ListaArreglo ',' ListaArreglo                         { doList $1 $3 }
+             | ListaArreglo ',' ListaArreglo                         { List.union $1 $3 }
              | '[' ListaArreglo ']'                                  { [Lista $2] }
              | '[' ListaConj ']'                                     { [Lista $2] }
 
@@ -168,12 +169,12 @@ ConjuntoId : id                                                      { (SetC.fro
            | ListaConjAlfaId                                         { (SetC.fromList $1) }
 
 ListaArrAlfaId : '['Lista_id ']'                                     { [Lista (map Ident $2)] }
-               | ListaArrAlfaId ',' ListaArrAlfaId                   { doList $1 $3 }
+               | ListaArrAlfaId ',' ListaArrAlfaId                   { List.union $1 $3 }
                | '['ListaArrAlfaId ']'                               { [Lista $2] }
                | '['ListaConjAlfaId ']'                              { [Lista $2] }
 
 ListaConjAlfaId : '{' Lista_id '}'                                   { [Cto (SetC.fromList (map Ident $2))] }
-                | ListaConjAlfaId ',' ListaConjAlfaId                { doCto $1 $3 }
+                | ListaConjAlfaId ',' ListaConjAlfaId                { $1 ++ $3 }
                 | '{' ListaConjAlfaId '}'                            { [Cto (SetC.fromList $2)] }
                 | '{' ListaArrAlfaId '}'                             { [Cto (SetC.fromList $2)] }
 
@@ -537,16 +538,6 @@ detectarErrores (map,ast) = case map of
                               Right map1 -> Right (map1,ast)
                               Left err -> Left err
                               
-
-{-|
-  Crea la concatenación de dos /Listas/
--}
-doList [(Lista a)] [(Lista b)] = [Lista a, Lista b]
-
-{-|
-  Crea la concatenación de dos /Conjuntos/
--}
-doCto [(Cto a)] [(Cto b)] = [Cto a, Cto b]
 
 {-|
   Crea el universo de todos los caractéres alfanuméricos imprimibles
