@@ -13,7 +13,7 @@
  -}
 module Main (
 -- * Función Principal.
-  main
+  main, chequear
 ) where
 import SetC
 import System.IO
@@ -26,6 +26,8 @@ import Parser
 import Interpreter
 import Abstract
 
+type SymTable = Map.Map String Symbol
+type SetTable = Map.Map String (SetC Elemento)
 type TupParser = (Map.Map String Symbol, AST)
 
 {-|
@@ -79,7 +81,8 @@ loop :: Map.Map String Symbol
 
 loop mapaActual = do
   line <- promptAndGet
-  catchSilently (chequear mapaActual (lexer line)) mapaActual
+  tp <- return $ procesarLinea mapaActual line
+  catchSilently tp mapaActual
 
 
 {-|
@@ -99,6 +102,17 @@ catchSilently tup old = C.catch try (fail old)
         interpreter tup
         loop $ fst $ tup
       fail old e = hPrint stderr e >> (loop old)
+
+
+
+procesarLinea :: SymTable
+              -> String
+              -> TupParser
+procesarLinea mapa linea = case chequeoEstructural elTupParser of
+                             Nothing -> ((chequeoDinamico elTupParser), (snd elTupParser))
+                             Just errs -> error $ errs
+    where elTupParser = chequear mapa (lexer linea)
+
 
 
 --
