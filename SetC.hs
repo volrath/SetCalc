@@ -32,7 +32,8 @@ module SetC (
    toList,
    powerSet,
    takeType,
-   mapSet
+   mapSet,
+   crossProduct
 ) where
 
 import List
@@ -214,3 +215,9 @@ takeType (Set l@(x:xs))  = Just l
 toList :: SetC a -- ^ Conjunto del que se usarán sus elementos
        -> [a] -- ^ Lista resultante
 toList (Set x) = x
+
+crossProduct :: (Eq a) => SetC a
+             -> SetC a
+             -> SetC (SetC a)
+crossProduct (Set x) (Set y) = fromList [fromList[a,b]|a <- x, b <- y]
+

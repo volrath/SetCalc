@@ -101,17 +101,17 @@ printOperations map (Secuencia (e:es)) = (printOperations map (Expr e)) ++ (prin
 calcularExpresion :: SymTable
                   -> Expresion
                   -> SetC Elemento
-calcularExpresion map (Union e1 e2) = SetC.unionSet (calcularExpresion map e1) (calcularExpresion map e2)
-calcularExpresion map (Interseccion e1 e2) = SetC.intersectSet (calcularExpresion map e1) (calcularExpresion map e2)
-calcularExpresion map (Diferencia e1 e2) = SetC.minusSet (calcularExpresion map e1) (calcularExpresion map e2)
---calcularExpresion map (Complemento e e) = SetC.complementSet (calcularExpresion e)
---calcularExpresion map (Cartesiano e e) = SetC.crossProduct (calcularExpresion e) (calcularExpresion e)
---calcularExpresion map (Partes e) = SetC.powerSet (calcularExpresion map e)
-calcularExpresion map (OpUniverso u) = evalUniverso map u
-calcularExpresion map (OpExtension ext) = evalExtension map ext
-calcularExpresion map (OpConj (Conjunto c d)) = c
-calcularExpresion map (OpId t) = conjuntoSetC $ takeConj (map Map.! (takeStr t))
-calcularExpresion map (Asignacion t e) = calcularExpresion map e
+calcularExpresion map1 (Union e1 e2) = SetC.unionSet (calcularExpresion map1 e1) (calcularExpresion map1 e2)
+calcularExpresion map1 (Interseccion e1 e2) = SetC.intersectSet (calcularExpresion map1 e1) (calcularExpresion map1 e2)
+calcularExpresion map1 (Diferencia e1 e2) = SetC.minusSet (calcularExpresion map1 e1) (calcularExpresion map1 e2)
+--calcularExpresion map1 (Complemento e) = SetC.complementSet (calcularExpresion map1 e) 
+calcularExpresion map1 (Cartesiano e1 e2) = SetC.mapSet Cto (SetC.crossProduct (calcularExpresion map1 e1) (calcularExpresion map1 e2))
+calcularExpresion map1 (Partes e) = SetC.mapSet Cto (SetC.powerSet (calcularExpresion map1 e))
+calcularExpresion map1 (OpUniverso u) = evalUniverso map1 u
+calcularExpresion map1 (OpExtension ext) = evalExtension map1 ext
+calcularExpresion map1 (OpConj (Conjunto c d)) = c
+calcularExpresion map1 (OpId t) = conjuntoSetC $ takeConj (map1 Map.! (takeStr t))
+calcularExpresion map1 (Asignacion t e) = calcularExpresion map1 e
 
 
 
@@ -188,7 +188,7 @@ chequeoOperador :: SymTable
 chequeoOperador mapa exp@(Union e1 e2) = chequeoOperador' mapa exp e1 e2
 chequeoOperador mapa exp@(Interseccion e1 e2) = chequeoOperador' mapa exp e1 e2
 chequeoOperador mapa exp@(Diferencia e1 e2) = chequeoOperador' mapa exp e1 e2
---chequeoOperador mapa (Cartesiano e1 e2) = chequeoOperador' mapa e1 e2
+chequeoOperador mapa exp@(Cartesiano e1 e2) = chequeoOperador' mapa exp e1 e2
 chequeoOperador mapa (Asignacion var e) = chequeoOperador mapa e
 chequeoOperador _ _ = Nothing
 
@@ -234,7 +234,7 @@ verificarTipoConjunto set intocable = case SetC.takeType set of
 
 
 {-
-compararTipos recibe dos mapas y averigua si sus tipos son equivalentes
+compararTipos recibe dos elementos y averigua si sus tipos son equivalentes
 -}
 compararTipos :: Elemento
               -> Elemento
