@@ -82,12 +82,18 @@ type TupParser = (SymTable, AST)
 
 interpreter :: TupParser
             -> IO()
-interpreter tp@(map, ast) = putStr $ printOperations map ast
+interpreter tp@(map, ast) = C.catch(putStr $ printOperations map ast) fail
+                             where fail e = exitWith ExitSuccess
 
 printOperations :: SymTable
                 -> AST
                 -> String
-printOperations map (Expr e) = (show e) ++ " ==> " ++ (show $ calcularExpresion map e) ++ "\n"
+printOperations map (Expr e) = case e of
+                               Instruccion e1 -> case e1 of
+                                                   Estado -> (show map) ++ "\n"
+                                                   Fin -> error $ show e1
+                                                   _ -> (show e1) ++ "\n"
+                               _ -> (show e) ++ " ==> " ++ (show $ calcularExpresion map e) ++ "\n"
 printOperations map (Secuencia []) = ""
 printOperations map (Secuencia (e:[])) = printOperations map (Expr e)
 printOperations map (Secuencia (e:es)) = (printOperations map (Expr e)) ++ (printOperations map (Secuencia es))
@@ -112,6 +118,11 @@ chequeoDinamico' mapa (Asignacion var e) =  case (SetC.subSet newVal (dominioDe 
       dominioDe var = dominioSetC mapa $ conjuntoDom $ takeConj (mapa Map.! (takeStr var))
       newVal = calcularExpresion mapa (Asignacion var e)
       showErr var e = error $ "El resultado de la expresion " ++ (show e) ++ " no es compatible con el dominio de la variable " ++ (takeStr var) ++ " - linea: " ++ (show $ fst $ takePos var) ++ ", columna: " ++ (show $ snd $ takePos var)
+chequeoDinamico' mapa (Instruccion e) = case e of
+                                          Estado -> mapa
+                                          Olvidar ids -> mapa --POR AHORA!!!!!!! ACOMODAR!!!!!!!
+                                          OlvidarTodo -> Map.empty
+                                          Fin -> Map.empty
 chequeoDinamico' mapa _ = mapa
 
 
@@ -129,8 +140,9 @@ calcularExpresion map1 (OpExtension ext) = evalExtension map1 ext
 calcularExpresion map1 (OpConj (Conjunto c d)) = c
 calcularExpresion map1 (OpId t) = conjuntoSetC $ takeConj (map1 Map.! (takeStr t))
 calcularExpresion map1 (Asignacion t e) = calcularExpresion map1 e
+calcularExpresion map1 (Instruccion Estado) = evalEstado map1
 
-
+evalEstado map1 = SetC.emptySet
 
 -- OJO: recordar que chequeoEstructural se llama asi:
 -- chequeoEstructural $ chequear mapaActual $ lexer line
@@ -183,6 +195,7 @@ verificarTipos exp@(OpId t) = Nothing
 verificarTipos exp@(Asignacion var e) = case verificarTipos e of
                                           Nothing -> Nothing
                                           Just errs -> Just $ mostrarError exp e errs
+verificarTipos exp@(Instruccion a) = Nothing
 
 verificarTipos' :: Expresion 
                 -> Expresion

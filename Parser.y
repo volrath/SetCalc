@@ -87,7 +87,7 @@ LProg  : Prog                                                        { construct
 
 Prog   : Decl '.'                                                    { detectarErrores($1, Secuencia []) }
        | Expr '.'                                                    { (Right (Map.empty, Expr $1)) }
-       | Inst '.'                                                    { (Right (ejecutarInstruccion $1))}
+       | Inst '.'                                                    { (Right (Map.empty, Expr (Instruccion $1)))}
 
 Decl  : Lista_id es dominio Dominio                                  { insertarDominio $1 $4 }
       | Lista_id tiene dominio Dominio                               { insertarConjunto $1 $4 }

@@ -82,7 +82,7 @@ loop mapaActual = do
   line <- promptAndGet
   C.catch (loop' mapaActual line) fail
       where fail e = do
-                    hPrint stderr e
+                    printOrKill e
                     loop mapaActual
 
 loop' :: SymTable -> String -> IO()
@@ -95,6 +95,12 @@ loop' mapaActual linea = do
   loop $ fst tp'
       where
         tp = parsearLinea mapaActual linea
+
+
+                       
+printOrKill e = if (e == C.ExitException ExitSuccess)
+                then C.throwIO e
+                else hPrint stderr e
 
 {-|
   catchOrPrint
@@ -398,8 +404,8 @@ actualizarMapa' :: String -- ^ Variable a chequear
                 -> Either String (Map.Map String Symbol)-- ^ Si se encontró la variable se devuelve el mapa actualizado. Error en caso contrario.
 actualizarMapa' key map = case Map.lookup (key) (map) of
                            Just (Symbol (_, Just con)) -> Right map
-                           Just (Symbol (_, Nothing)) -> Left ("La variable " ++ key ++ " no esta definida como conjunto y es usada en la linea y en la columna. \n")
-                           Nothing -> Left ("La variable " ++ key ++ " no esta definida como conjunto y es usada en la linea y en la columna. \n")
+                           Just (Symbol (_, Nothing)) -> Left ("La variable " ++ key ++ " no esta definida como conjunto y es usada en el comando introducido. \n")
+                           Nothing -> Left ("La variable " ++ key ++ " no esta definida como conjunto y es usada en la linea y en en el comando introducido. \n")
       
 chequearAsignacion :: AST -- ^ AST a analizar
                    -> Map.Map String Symbol -- ^ Mapa de símbolos resultante
