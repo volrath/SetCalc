@@ -116,10 +116,10 @@ ListaArregloDom : '[' ']'                               { [] }
 Lista_id : id                                      { [Var (takeStr $1)] }
          | Lista_id ',' id                         { $1 ++ [Var (takeStr $3)] }
 
-Conjunto : '{' '}'                                 { [] }
-         | '{' Alfa_ran '}'                        { $2 }
-         | '{' ListaConj '}'                       { $2 }
-         | '{' ListaArreglo '}'                    { $2 }
+Conjunto : '{' '}'                                 { Conjunto [] }
+         | '{' Alfa_ran '}'                        { Conjunto $2 }
+         | '{' ListaConj '}'                       { Conjunto $2 }
+         | '{' ListaArreglo '}'                    { Conjunto $2 }
 
 Alfa_ran : str                                     { [Elem (takeStr $1)] }
          | str '..' str                            { [Rango (head $ takeStr $1) (head $ takeStr $3)] }

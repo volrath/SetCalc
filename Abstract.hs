@@ -18,8 +18,8 @@ module Abstract (
 data AST = Expresion
          | Secuencia AST Expresion
 
-data Symbol = Conjunto
-            | Dominio
+data Symbol = Conjunto [Elemento]
+            | Dominio [Elemento]
 
 data Var = Var String
 
