@@ -1,0 +1,9 @@
+Revisar tipos.............................
+Conjuntos por intencion..........................
+Guardar Map en varias lineas de comando
+Poner en SetCalc el chequeo de declaraciones dobles y uso de variables no definidas
+Revisar dominio al definir conjuntos
+Instrucciones especiales: estado, olvidar
+Filtros, Funciones predefinidas
+Hacer que las cosas se impriman bonito
+
