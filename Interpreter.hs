@@ -99,11 +99,15 @@ stringSet ((var,sym):sts) = case set of
   Recibe una tupla de SymTable y AST y devuelve una tupla con los posibles errores
   dinámicos encontrados en las asignaciones del AST.
 -}
-chequeoDinamico :: TupParser
-                -> (String, SymTable)
+chequeoDinamico :: TupParser -- ^ Tupla de SymTable y AST a chequear
+                -> (String, SymTable) -- ^ Tupla con los errores resultantes y el mapa actualizado con los valores de las asignaciones ya realizadas.
 chequeoDinamico (mapa, (Secuencia exprs)) = foldl chequeoDinamico' ([], mapa) exprs
 
-
+{-|
+  Función de apoyo a chequeoDinamico. Sirve para reducir la lista de expresiones
+  devolviendo cada vez una tupla con Errores y el nuevo SymTable actualizado, cada vez
+  que va pasando por una nueva expresión.
+-}
 chequeoDinamico' :: (String, SymTable)
                  -> Expresion
                  -> (String, SymTable)
@@ -133,10 +137,12 @@ mezclarMapas (errs1, map1) (errs2, map2) = (errs1 ++ errs2, Map.union map1 map2)
 
 
 
-
-calcularExpresion :: SymTable
-                  -> Expresion
-                  -> SetC Elemento
+{-|
+  Calcula el valor de una expresión, dado un estado (symtable)
+-}
+calcularExpresion :: SymTable -- ^ SymTable donde se buscarán los valores para comparar.
+                  -> Expresion -- ^ Expresión a calcular.
+                  -> SetC Elemento -- ^ Resultado.
 calcularExpresion map1 (Union e1 e2) = SetC.unionSet (calcularExpresion map1 e1) (calcularExpresion map1 e2)
 calcularExpresion map1 (Interseccion e1 e2) = SetC.intersectSet (calcularExpresion map1 e1) (calcularExpresion map1 e2)
 calcularExpresion map1 (Diferencia e1 e2) = SetC.minusSet (calcularExpresion map1 e1) (calcularExpresion map1 e2)
@@ -150,16 +156,24 @@ calcularExpresion map1 (OpId t) = conjuntoSetC $ takeConj (map1 Map.! (takeStr t
 calcularExpresion map1 (Asignacion t e) = calcularExpresion map1 e
 calcularExpresion map1 _  = SetC.emptySet
 
+
+
+{-|
+  Realiza el chequeo estructural de todas las expresiones de un AST. Se encarga
+  Tanto de hacer el chequeo de la buena definición de tipos de datos de todos los
+  conjuntos escritos literalmente como de la buena definición de los operadores.
+-}
 chequeoEstructural :: TupParser -- ^ El TupParser que tiene el mapa 
                    -> Maybe String -- ^ Errores... o no?
 chequeoEstructural (mapa, (Secuencia exprs)) = chequeoEstructural' mapa exprs
 
-
--- Verifica los tipos de datos de todos los conjuntos escritos
--- literalmente en la expresion
-chequeoEstructural' :: SymTable
-                    -> [Expresion]
-                    -> Maybe String
+{-|
+  Verifica los tipos de datos de todos los conjuntos escritos
+  literalmente en la expresion
+-}
+chequeoEstructural' :: SymTable -- ^ SymTable en donde se compararán los identificadores y sus dominios
+                    -> [Expresion] -- ^ Lista de expresiones a cheuqear
+                    -> Maybe String -- ^ Hubo Errores?
 chequeoEstructural' mapa [] = Nothing
 chequeoEstructural' mapa (e:es) = case verificarTipos e of
                                     Nothing -> case chequeoOperador mapa e of
@@ -171,11 +185,12 @@ chequeoEstructural' mapa (e:es) = case verificarTipos e of
                                                           Nothing -> Just errTipoConj
                                                           Just errs -> Just $ errTipoConj ++ errs
 
-
--- Solo revisa si todos los conjuntos de una expresion estan bien
--- definidos, no revisa las operaciones ni sus operandos
-verificarTipos :: Expresion
-               -> Maybe String
+{-
+  Solo revisa si todos los conjuntos de una expresion estan bien
+  definidos, no revisa las operaciones ni sus operandos
+-}
+verificarTipos :: Expresion -- ^ Expresión a verificar
+               -> Maybe String -- ^ Hubo errores?
 verificarTipos exp@(Union e1 e2) = verificarTipos' exp e1 e2
 verificarTipos exp@(Interseccion e1 e2) = verificarTipos' exp e1 e2
 verificarTipos exp@(Diferencia e1 e2) = verificarTipos' exp e1 e2
@@ -210,9 +225,14 @@ mostrarError :: Expresion -> Expresion -> String -> String
 mostrarError orig op err = "\nError en el argumento de " ++ (show orig) ++ " llamado: " ++ (show op) ++ " => " ++ err ++ "\n"
 
 
-chequeoOperador :: SymTable
-                -> Expresion
-                -> Maybe String
+
+{-|
+  Verifica recursivamente que todos los operadores de una expresión
+  estén bien definidos. Devuelve los posibles errores encontrados, o nada
+-}
+chequeoOperador :: SymTable -- ^ SymTable en donde se compararán los identificadores
+                -> Expresion -- ^ Expresión a chequear
+                -> Maybe String -- ^ Hubo errores?
 chequeoOperador mapa exp@(Union e1 e2) = chequeoOperador' mapa exp e1 e2
 chequeoOperador mapa exp@(Interseccion e1 e2) = chequeoOperador' mapa exp e1 e2
 chequeoOperador mapa exp@(Diferencia e1 e2) = chequeoOperador' mapa exp e1 e2
@@ -221,11 +241,15 @@ chequeoOperador mapa (Asignacion var e) = chequeoOperador mapa e
 chequeoOperador _ _ = Nothing
 
 
-chequeoOperador' :: SymTable
-                 -> Expresion
-                 -> Expresion
-                 -> Expresion
-                 -> Maybe String
+{-|
+  Verifica que dos expresiones sean del mismo tipo de datos para que un operador
+  este bien definido. Se encarga de reportar el error, si hubo.
+-}
+chequeoOperador' :: SymTable -- ^ SymTable en donde se compararán los identificadores
+                 -> Expresion -- ^ Expresion original, utilizada para reportar el error
+                 -> Expresion -- ^ Primer operador de la expresión
+                 -> Expresion -- ^ Segundo operador.
+                 -> Maybe String -- ^ Hubo Errores?
 chequeoOperador' mapa orig e1 e2 = case SetC.takeType $ calcularExpresion mapa e1 of
                                      Nothing -> case SetC.takeType $ calcularExpresion mapa e2 of
                                                   Nothing -> Nothing
@@ -242,10 +266,13 @@ chequeoOperador' mapa orig e1 e2 = case SetC.takeType $ calcularExpresion mapa e
 
 
 
-
-verificarTipoConjunto :: SetC Elemento
-                      -> SetC Elemento
-                      -> Maybe String
+{-|
+  Verifica que un conjunto tenga un tipo de datos bien definido, es decir,
+  no existan cosas como {1,{1},2}.
+-}
+verificarTipoConjunto :: SetC Elemento -- ^ Conjunto a verificar.
+                      -> SetC Elemento -- ^ Conjunto original que no va a ser modificado en ninguna llamada recursiva. Sirve para reportar el error.
+                      -> Maybe String -- ^ Hubo errores?
 verificarTipoConjunto set intocable = case SetC.takeType set of
                                         Nothing -> Nothing
                                         Just (x:[]) -> case x of
@@ -263,12 +290,12 @@ verificarTipoConjunto set intocable = case SetC.takeType set of
                                                                     False -> Just $ "\n  El tipo de datos del elemento " ++ (show intocable) ++ " esta mal definido"
 
 
-{-
-compararTipos recibe dos elementos y averigua si sus tipos son equivalentes
+{-|
+  compararTipos recibe dos elementos y averigua si sus tipos son equivalentes
 -}
-compararTipos :: Elemento
-              -> Elemento
-              -> Bool
+compararTipos :: Elemento -- ^ Primer elemento a comparar
+              -> Elemento -- ^ Segundo elemento a comparar
+              -> Bool -- ^ True si son iguales, False si lo contrario.
 compararTipos (Cto c1) (Cto c2) = case SetC.takeType c1 of
                                     Nothing -> case SetC.takeType c2 of
                                                  Nothing -> True
@@ -281,9 +308,14 @@ compararTipos (Elem s1) (Elem s2) = True
 compararTipos _ _ = False
 
 
-evalExtension :: SymTable
-              -> Ext
-              -> SetC Elemento
+{-|
+  Evalúa un conjunto por extención, dado un SymTable y devuelve el SetC resultante.
+  Esta función no pudo ser completada. Lo único que no sirve es la verificación de los
+  filtros para los conjuntos por extención que tengan más de un dummy.
+-}
+evalExtension :: SymTable -- ^ SymTable a buscar los identificadores
+              -> Ext -- ^ Conjunto por extención a evaluar
+              -> SetC Elemento -- ^ Resultado
 evalExtension mapa (ConjuntoExt (Ident el) ((Gen _ t):[]) fls) = SetC.fromList [x | x <- (generador mapa t), evalFiltros1 mapa x fls]
     where
       generador mapa t = (\(Just l) -> l) $ SetC.takeType $ conjuntoSetC $ takeConj $ (mapa Map.! (takeStr t))
@@ -292,7 +324,10 @@ evalExtension mapa (ConjuntoExt (Tupla (Ident x, Ident y)) [(Gen a t1), (Gen b t
     | otherwise = SetC.fromList [ Tupla (x,y) | x <- (generador mapa t2), y <- (generador mapa t1)]
     where generador mapa t = (\(Just l) -> l) $ SetC.takeType $ conjuntoSetC $ takeConj $ (mapa Map.! (takeStr t))
 
-evalFiltros1 :: SymTable
+{-|
+  Evalúa los filtros para un solo elemento dummy
+-}
+evalFiltros1 :: SymTable -- ^ 
              -> Elemento
              -> [Filtro]
              -> Bool
@@ -316,33 +351,9 @@ filtrar1 mapa (Elem a) (FilMayor _ (Elem b)) = a > b
 filtrar1 mapa _ _ = False
 
 
-
-
-
-
-
-
-
--- evalFiltros :: SymTable
---              -> [Filtro]
---              -> Bool
--- evalFiltros mapa fls = foldl (&&) True $ map (aplicarFiltro mapa) fls
-
--- aplicarFiltro :: SymTable
---               ->
---               -> Filtro
---               -> Bool
--- aplicarFiltro mapa (FilIgual e1 e2) = 
--- aplicarFiltro mapa (FilMenor e1 e2) =
--- aplicarFiltro mapa (FilMayor e1 e2) =
--- aplicarFiltro mapa (FilMayuscula e) = SetC.subset
-
-        
-
-
-{-
-Evalua tanto un universo de una variable como el universo de todos
-los caracteres imprimible en haskell.
+{-|
+  Evalua tanto un universo de una variable como el universo de todos
+  los caracteres imprimible en haskell.
 -}
 evalUniverso :: SymTable
              -> Univ
@@ -350,7 +361,9 @@ evalUniverso :: SymTable
 evalUniverso map (UniversoT (Conjunto cu d)) = cu
 evalUniverso map (UniversoDe t) = dominioSetC map $ takeDom (map Map.! (takeStr t))
 
-
+{-|
+  Evalúa el complemento de una expresión
+-}
 evalComplemento :: SymTable
                 -> Expresion
                 -> SetC Elemento
@@ -362,8 +375,11 @@ evalComplemento mapa (Asignacion var e) = SetC.minusSet (dominioDe mapa var) (ca
     where
       dominioDe mapa var = dominioSetC mapa $ conjuntoDom $ takeConj (mapa Map.! (takeStr var))
 evalComplemento mapa _ = SetC.emptySet
-{-
-Recibe un
+
+
+{-|
+  Transforma un mapa de simbolos en un mapa que es exáctamente igual pero en vez de tener
+  Symbol como value, tiene SetC's
 -}
 sym2setTable :: SymTable
              -> SetTable
@@ -373,9 +389,9 @@ sym2setTable sym = toSetTable (Map.toList sym)
           toSetTable _ = Map.empty
 
 
-{-
-Recibe una variable que debe ser un conjunto en el symtable, y un setC a meter en el
-lugar de esa variable, sin tocar el dominio del conjunto
+{-|
+  Recibe una variable que debe ser un conjunto en el symtable, y un setC a meter en el
+  lugar de esa variable, sin tocar el dominio del conjunto
 -}
 actualizarConjS :: String
                 -> SetC Elemento
@@ -419,34 +435,40 @@ takeConj :: Symbol  -- ^ /Symbol/ sobre el que se quiere su conjunto asociado.
 takeConj (Symbol (_, Just a)) = a
 takeConj (Symbol (_, Nothing)) = error $ "Error 0x08042FFD"
 
-{-
+{-|
   Obtiene el setC de un conjunto
 -}
 conjuntoSetC :: Conjunto
              -> SetC Elemento
 conjuntoSetC (Conjunto sc d) = sc
 
-{-
+{-|
   Obtiene el dominio de un cojunto
 -}
 conjuntoDom :: Conjunto
             -> Dominio
 conjuntoDom (Conjunto sc d) = d
 
-{-
+{-|
   Dado un symtable, busca el valor en setc de un dominio
 -}
 dominioSetC :: SymTable -> Dominio -> SetC Elemento
 dominioSetC _ (Dominio sc) = sc
 dominioSetC mapa (DominioID dom) = dominioSetC mapa $ takeDom $ mapa Map.! (takeStr dom)
 
-
+{-|
+  Revisa si todos los elementos de una lista son del constructor Elem
+-}
 sonElementos :: [Elemento]
              -> Bool
 sonElementos [] = True 
 sonElementos ((Elem e): es) = True && sonElementos es
 sonElementos _ = False
 
+
+{-|
+  Realiza el producto cruz de dos conjuntos
+-}
 crossProduct :: SetC Elemento
              -> SetC Elemento
              -> SetC Elemento
