@@ -66,7 +66,7 @@ import qualified Data.Map as Map
         todo                     { TkTodo  a         }
         fin                      { TkFin a           }
         '=='                     { TkIgual a         }
-        '<'                      { TkMenor a          }
+        '<'                      { TkMenor a         }
         '>'                      { TkMayor a         }
         mayuscula                { TkMayuscula a     }
         letra                    { TkLetra a         }
@@ -90,15 +90,15 @@ Prog   : Decl                                      { ([$1], []) }
 
 Decl  : Lista_id es dominio Dominio                { ($1, $4) }
       | Lista_id tiene dominio Dominio             { ($1, $4) }
+      | Lista_id tiene dominio id                  { ($1, $4) }
 
-Dominio : ConjuntoDom                              { Dominio }
-        | id                                       { Var (takeStr $1) }
-        | universal                                { Dominio }
+Dominio : ConjuntoDom                              { Dominio $1 }
+        | universal                                { Dominio [] }
 
 ConjuntoDom : '{' '}'                              { [] }
             | '{' LAlfa '}'                        { $2 }
             | '{' ListaConjDom '}'                 { $2 }
-            | '{' ListaArregloDom '}'              { $2 } 
+            | '{' ListaArregloDom '}'              { $2 }
 
 LAlfa : str                                        { [Elem (takeStr $1)] }
       | LAlfa ',' str                              { $1 ++ [Elem (takeStr $3)] }
