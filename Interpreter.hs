@@ -179,7 +179,7 @@ calcularExpresion :: SymTable
 calcularExpresion map1 (Union e1 e2) = SetC.unionSet (calcularExpresion map1 e1) (calcularExpresion map1 e2)
 calcularExpresion map1 (Interseccion e1 e2) = SetC.intersectSet (calcularExpresion map1 e1) (calcularExpresion map1 e2)
 calcularExpresion map1 (Diferencia e1 e2) = SetC.minusSet (calcularExpresion map1 e1) (calcularExpresion map1 e2)
---calcularExpresion map1 (Complemento e) =  evalComplemento map1 (calcularExpresion map1 e)
+calcularExpresion map1 (Complemento e) =  evalComplemento map1 e
 calcularExpresion map1 (Cartesiano e1 e2) = crossProduct (calcularExpresion map1 e1) (calcularExpresion map1 e2)
 calcularExpresion map1 (Partes e) = SetC.mapSet Cto (SetC.powerSet (calcularExpresion map1 e))
 calcularExpresion map1 (OpUniverso u) = evalUniverso map1 u
@@ -346,8 +346,17 @@ evalUniverso map (UniversoT (Conjunto cu d)) = cu
 evalUniverso map (UniversoDe t) = dominioSetC map $ takeDom (map Map.! (takeStr t))
 
 
---evalComplemento :: Symtable
---                -> SetC Elemento
+evalComplemento :: SymTable
+                -> Expresion
+                -> SetC Elemento
+evalComplemento mapa (OpId t) = SetC.minusSet (dominioDe mapa t) (conjuntoActualDe mapa t)
+    where
+      dominioDe mapa var = dominioSetC mapa $ conjuntoDom $ takeConj (mapa Map.! (takeStr var))
+      conjuntoActualDe mapa var = conjuntoSetC $ takeConj (mapa Map.! (takeStr var))
+evalComplemento mapa (Asignacion var e) = SetC.minusSet (dominioDe mapa var) (calcularExpresion mapa e)
+    where
+      dominioDe mapa var = dominioSetC mapa $ conjuntoDom $ takeConj (mapa Map.! (takeStr var))
+evalComplemento mapa _ = SetC.emptySet
 {-
 Recibe un
 -}
