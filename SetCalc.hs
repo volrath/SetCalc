@@ -78,8 +78,8 @@ loop :: Map.Map String Symbol
      -> IO()
 
 loop mapaActual = do
-                 line <- promptAndGet
-                 catchSilently (chequear mapaActual (lexer line)) mapaActual
+  line <- promptAndGet
+  catchSilently (chequear mapaActual (lexer line)) mapaActual
 
 
 {-|
@@ -93,8 +93,12 @@ loop mapaActual = do
 catchSilently ::  TupParser -- ^ La ejecución de las funciones parser y lexer sobre un string.
               ->  Map.Map String Symbol 
               -> IO() -- ^ La impresión del resultado de la ejecución de la función.
-catchSilently tup old = C.catch (print tup >> (loop $ fst $ tup)) (fail old)
-    where fail old e = hPrint stderr e >> (loop old)
+catchSilently tup old = C.catch try (fail old)
+    where 
+      try = do
+        interpreter tup
+        loop $ fst $ tup
+      fail old e = hPrint stderr e >> (loop old)
 
 
 --
@@ -249,7 +253,7 @@ existenErrores t xs = case existeSymbol t xs of
 existeSymbol :: TupParser
              -> [(String,Symbol)]
              -> Either String TupParser
-
+existeSymbol tp [] = Right tp
 existeSymbol (map,ast) (x:[]) = case existeSymbol' map x of
                                   Right m -> Right (m,ast)
                                   Left err -> Left err

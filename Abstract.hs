@@ -47,7 +47,9 @@ data Dominio = Dominio (SetC Elemento) -- ^ Dominio
   de calculadora /SetCalc/
 -}
 data Conjunto = Conjunto (SetC Elemento) Dominio -- ^ Conjunto
-              deriving (Eq, Show)
+              deriving (Eq)
+instance Show Conjunto where
+    show (Conjunto set dom) = show set
 
 {-|
   TAD /Inst/:
