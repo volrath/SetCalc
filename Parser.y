@@ -169,26 +169,11 @@ Expr     : Conjunto                                                  { OpConj $1
 Universo : universo                                                  { UniversoT (crearUniverso) }
          | universo de id                                            { UniversoDe $3 }
 
-Extension : '{' ConjuntoId '|' LGenerador ',' LFiltro '}'            { ConjuntoExt $2 $4 $6 }
-          | '{' ConjuntoId '|' LGenerador '}'                        { ConjuntoExt $2 $4 [] }
+Extension : '{' ExtElem '|' LGenerador ',' LFiltro '}'               { ConjuntoExt $2 $4 $6 }
+          | '{' ExtElem '|' LGenerador '}'                           { ConjuntoExt $2 $4 [] }
 
-ConjuntoId : id                                                      { (SetC.fromList [Ident $1]) }
-           | ListaTuplaAlfaId                                        { (SetC.fromList $1) }
-           | ListaConjAlfaId                                         { (SetC.fromList $1) }
-
-TuplaAlfaId : '['id ',' id ']'                                       { Tupla (Ident $2, Ident $4) }
-            | '['TuplaAlfaId ',' TuplaAlfaId ']'                     { Tupla ($2,$4) }
-            | '['ConjAlfaId ',' ConjAlfaId ']'                       { Tupla ($2,$4) }
-
-ListaTuplaAlfaId : TuplaAlfaId                                       { [$1] }
-                 | ListaTuplaAlfaId ',' TuplaAlfaId                  { $1 ++ [$3] }
-
-ConjAlfaId : '{' Lista_id '}'                                        { Cto (SetC.fromList (map Ident $2)) }
-           | '{' ListaConjAlfaId '}'                                 { Cto (SetC.fromList $2) }
-           | '{' ListaTuplaAlfaId '}'                                { Cto (SetC.fromList $2) }
-
-ListaConjAlfaId : ConjAlfaId                                         { [$1] }
-                | ListaConjAlfaId ',' ConjAlfaId                     { $1 ++ [$3] }
+ExtElem : id                                                         { Ident $1 }
+        | '[' id ',' id ']'                                          { Tupla (Ident $2, Ident $4) }
 
 LGenerador : Generador                                               { [$1] }
            | LGenerador ',' Generador                                { $1 ++ [$3] }
