@@ -548,7 +548,9 @@ olvidarVariables :: [Token]
                  -> Either String SymTable
 
 olvidarVariables (x:[]) map = case Map.member (takeStr x) map of
-                                True -> Right(Map.delete (takeStr x) map)
+                                True -> case estaUsadoDominio (takeStr x) (Map.toList map) of
+                                          False -> Right(Map.delete (takeStr x) map)
+                                          True -> Left("La variable "++ (takeStr x) ++ " no puede ser olvidada ya que esta siendo usada como dominio para la definicion de un conjunto u otro dominio.")
                                 False -> Left("La variable "++ (takeStr x)++ " es usada en la linea "++ show (fst(takePos x)) ++ " y en la columna "++ show(snd(takePos x)) ++ " y no esta definida.")
 olvidarVariables (x:xs) map = case olvidarVariables [x] map of
                                 Right map1 -> olvidarVariables xs map1
@@ -556,3 +558,28 @@ olvidarVariables (x:xs) map = case olvidarVariables [x] map of
                                               Right map2 -> Right map2
                                               Left err2 -> Left (err ++ "\n" ++ err2)
 
+
+estaUsadoDominio :: String
+                 -> [(String,Symbol)]
+                 -> Bool
+estaUsadoDominio dom [] = False
+estaUsadoDominio dom [(x,sym)] = case sym of
+                                   Symbol(Just(DominioID dom2),Nothing) -> if dom == (takeStr dom2)
+                                                                           then True
+                                                                           else False
+                                   Symbol(Nothing, Just(Conjunto con (DominioID dom2))) -> if dom == (takeStr dom2)
+                                                                                           then True
+                                                                                           else False
+                                   Symbol(Just(DominioID dom2),Just(Conjunto con (DominioID dom3))) -> if dom == (takeStr dom2)
+                                                                                                       then True
+                                                                                                       else if dom == (takeStr dom3)
+                                                                                                            then True
+                                                                                                            else False
+                                   Symbol(Just(DominioID dom2),Just (Conjunto con (Dominio dom3))) -> if dom == (takeStr dom2)
+                                                                                                      then True
+                                                                                                      else False
+                                   Symbol(Just(Dominio dom2), Just (Conjunto con (DominioID dom3))) -> if dom == (takeStr dom3)
+                                                                                                       then True
+                                                                                                       else False
+                                   _ -> False
+estaUsadoDominio dom (x:xs) = (estaUsadoDominio dom [x]) || (estaUsadoDominio dom xs)
