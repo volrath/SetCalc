@@ -384,15 +384,14 @@ crearConjunto map (k, v) = case  Map.lookup (takeStr k) (transformarMapa map) of
       pos = takePosIdStr k
 
 {-|
-                La función @actualizarMapa@ recibe un Mapa de símbolos
-                y una lista de tuplas de entradas que representan 
-                las variables usadas en las asignaciones y en los generadores
-                que se encuentran en las expresiones del programa
-                y mediante el uso de la función actualizarMapa' se
-                genera un error en caso de haberse usado una variable no
-                definida y se devuelve el mapa resultante en caso contrario.
+  La función @actualizarMapa@ recibe un Mapa de símbolos
+  y una lista de tuplas de entradas que representan 
+  las variables usadas en las asignaciones y en los generadores
+  que se encuentran en las expresiones del programa
+  y mediante el uso de la función actualizarMapa' se
+  genera un error en caso de haberse usado una variable no
+  definida y se devuelve el mapa resultante en caso contrario.
 -}
-
 actualizarMapa :: Map.Map Token Symbol -- ^ Mapa generado por las declaraciones del programa hasta el momento.
                -> [(Token, Symbol)]  -- ^ Lista de tuplas que fueron usadas en asignaciones y en generadores.
                -> Either ((Map.Map Token Symbol), String) (Map.Map Token Symbol) -- ^ Devuelve una tupla con el mapa generado hasta el momento con las asignaciones que han sido aceptadas acompañada de un String con los errores en caso de haber errores de contexto, en caso contrario devuelve el mapa resultante de realizar las asignaciones.
@@ -407,7 +406,16 @@ actualizarMapa map1 ((m2key, m2value):m2s) = case actualizarMapa' m2key map1 of
                                                            Right res1 -> Left (res1,err)
                                                            Left (m,err1) -> Left (m,err++err1)
 
-actualizarMapa' :: Token -> Map.Map Token Symbol -> Either String (Map.Map Token Symbol)
+{-|
+  Recibe una variable y un mapa de símbolos y revisa si dicha
+  variable se encuentra definida en el mapa como un conjunto.
+  Si la encuentra devuelve el mapa de símbolos (actualizado
+  para la siguiente entrega), pero si no lo encuentra devuelve
+  un error correspondiente.
+-}
+actualizarMapa' :: Token -- ^ Variable a chequear
+                -> Map.Map Token Symbol -- ^ Mapa en donde se buscará la variable
+                -> Either String (Map.Map Token Symbol)-- ^ Si se encontró la variable se devuelve el mapa actualizado. Error en caso contrario.
 actualizarMapa' key map = case Map.lookup (takeStr key) (transformarMapa map) of
                            Just (Symbol (_, Just con)) -> Right map
                            Just (Symbol (_, Nothing)) -> Left ("La variable " ++ takeStr key ++ " no esta definida como conjunto y es usada en la linea "++ show(fst(pos)) ++ " y en la columna "++ show(snd(pos)) ++ ". \n")
@@ -415,39 +423,88 @@ actualizarMapa' key map = case Map.lookup (takeStr key) (transformarMapa map) of
     where
       pos = takePosIdStr key
       
-takeDom :: Symbol -> Dominio
+{-|
+  Devuelve el dominio asociado a un /Symbol/
+-}
+takeDom :: Symbol -- ^ /Symbol/ sobre el que se quiere su dominio asociado.
+        -> Dominio -- ^ Dominio encontrado en el /Symbol/.
 takeDom (Symbol (Just a, _)) = a
 takeDom (Symbol (Nothing, _)) = error $ "Error 0x08042FFA"
 
-takeConj :: Symbol -> Conjunto
+{-|
+  Análogamente a la funcion anterior, devuelve el conjunto asociado
+  a un /Symbol/.
+-}
+takeConj :: Symbol  -- ^ /Symbol/ sobre el que se quiere su conjunto asociado.
+         -> Conjunto -- ^ Conjunto encontrado en el /Symbol/.
 takeConj (Symbol (_, Just a)) = a
 takeConj (Symbol (_, Nothing)) = error $ "Error 0x08042FFD"
 
-insertarDominio :: [Token] -> Dominio -> Either String (Map.Map Token Symbol)
+{-|
+  Recibe una lista de variables provenientes de una declaración y las inicializa
+  como dominios, chequeando que no existan doble declaraciones en el contexto
+  que se está manejando.
+-}
+insertarDominio :: [Token] -- ^ Lista de variables a inicializar 
+                -> Dominio -- ^ Dominio al cual representarán dichas variables
+                -> Either String (Map.Map Token Symbol) -- ^ El nuevo mapa de símbolos o un string con algún error.
 insertarDominio [] dom = Right Map.empty
 insertarDominio (x:xs) dom = case unirMapas' (Map.singleton x (Symbol (Just dom, Nothing))) (map (hacerTuplaDom dom) xs) of
                                Right map1 -> Right map1
                                Left errs -> Left  errs
 
-hacerTuplaDom :: Dominio -> Token -> (Token, Symbol)
+{-|
+  Crea una tupla que contiene el nombre de la variable pasada por parametro
+  y un dominio que guarda el /SetC/ pasado (envuelto en Dominio).
+-}
+hacerTuplaDom :: Dominio  -- ^ Dominio a guardar.
+              -> Token -- ^ Variable a la que se le olvidara el dominio 
+              -> (Token, Symbol)
 hacerTuplaDom dom x = (x, (Symbol (Just dom, Nothing)))
 
-insertarConjunto :: [Token] -> Dominio -> Either String (Map.Map Token Symbol)
+{-|
+  Recibe una lista de variables provenientes de una declaración y las inicializa
+  como conjuntos (vacíos para los efectos de esta entrega de proyecto), chequeando
+  que no existan doble declaraciones en el contexto que se está manejando.
+-}
+insertarConjunto :: [Token] -- ^ Lista de variables a inicializar
+                 -> Dominio -- ^ Dominio sobre el cual se quiere inicializar los conjuntos.
+                 -> Either String (Map.Map Token Symbol) -- ^ El nuevo mapa de símbolos o un string con algún error.
 insertarConjunto [] conj = Right Map.empty
 insertarConjunto (x:xs) conj = case unirMapas' (Map.singleton x (Symbol (Nothing, Just (Conjunto (SetC.emptySet))))) (map (hacerTuplaConj) xs) of
                                  Right map1 -> Right map1
                                  Left errs -> Left errs
 
-hacerTuplaConj :: Token -> (Token, Symbol)
+{-|
+  Crea una tupla que contiene el nombre de la variable pasada por parametro
+  y un conjunto vacío.
+-}
+hacerTuplaConj :: Token -- ^ Variable a crear.
+               -> (Token, Symbol) -- ^ Conjunto vacío
 hacerTuplaConj x = (x, (Symbol (Nothing, Just (Conjunto (SetC.emptySet)))))
 
-chequearAsignacion :: AST -> Map.Map Token Symbol
+{-|
+  Dado un AST, revisa toda la lista de expresiones que éste contenga y
+  las analiza con chequearAsignacion' para buscar todas las asignaciones
+  dentro de un AST completo.
+-}
+chequearAsignacion :: AST -- ^ AST a analizar
+                   -> Map.Map Token Symbol-- ^ Mapa de símbolos resultante
 chequearAsignacion (Secuencia []) = Map.empty
 chequearAsignacion (Expr exp) = chequearAsignacion' exp Map.empty
 chequearAsignacion (Secuencia (x:[])) = chequearAsignacion' x Map.empty
 chequearAsignacion (Secuencia (x:xs)) = Map.union (chequearAsignacion' x Map.empty) (chequearAsignacion (Secuencia xs))
 
-chequearAsignacion' :: Expresion -> Map.Map Token Symbol -> Map.Map Token Symbol
+{-|
+  Recorre un árbol de expresiones en búsqueda de asignaciones, cuando
+  las encuentra, va almacenando en un mapa de símbolos auxiliar las
+  variables involucradas en dichas funciones. Este mapa de símbolos
+  resultante sera contrastado al final con el mapa de símbolos resultante
+  del análisis sintáctico del resto del programa.
+-}
+chequearAsignacion' :: Expresion -- ^ Árbol de expresiones.
+                    -> Map.Map Token Symbol -- ^ Almacenamiento del mapa de símbolos a generar
+                    -> Map.Map Token Symbol -- ^ Mapa de símbolos resultante
 chequearAsignacion' exp map = case exp of
                                Union x y -> Map.union (chequearAsignacion' x map) (chequearAsignacion' y map)
                                Interseccion x y -> Map.union (chequearAsignacion' x map) (chequearAsignacion' y map)
@@ -461,33 +518,70 @@ chequearAsignacion' exp map = case exp of
                                OpUniverso(UniversoDe var) -> Map.insert var (Symbol (Nothing, Just (Conjunto (SetC.emptySet)))) map
                                _ -> Map.empty
 
-
-chequearGenerador :: [Generador] -> Map.Map Token Symbol
+{-|
+  Crea un mapa de símbolos con las variables usadas en los
+  lados derechos de cada generador de un conjunto por extensión,
+  este mapa luego será constrastado contra el mapa de símbolos
+  original que se ha parseado.
+-}
+chequearGenerador :: [Generador] -- ^ Lista de generadores  
+                  -> Map.Map Token Symbol -- ^ Mapa generado con las variables de los lados derechos de los generadores.
 chequearGenerador [] = Map.empty
 chequearGenerador ((Gen x y):xs) = Map.union (Map.singleton y (Symbol (Nothing, Just (Conjunto (SetC.emptySet))))) (chequearGenerador xs)
 
-detectarErrores :: ((Either String (Map.Map Token Symbol)), AST) -> Either String TupParser
+{-|
+  Verifica que se haya recibido efectivamente un Mapa de símbolos
+  y lo devuelve. Si no es así, devuelve únicamente los errores
+  encontrados.
+-}
+detectarErrores :: ((Either String (Map.Map Token Symbol)), AST) 
+                -> Either String TupParser
 detectarErrores (map,ast) = case map of
                               Right map1 -> Right (map1,ast)
                               Left err -> Left err
                               
 
+{-|
+  Crea la concatenación de dos /Listas/
+-}
 doList [(Lista a)] [(Lista b)] = [Lista a, Lista b]
+
+{-|
+  Crea la concatenación de dos /Conjuntos/
+-}
 doCto [(Cto a)] [(Cto b)] = [Cto a, Cto b]
 
+{-|
+  Crea el universo de todos los caractéres alfanuméricos imprimibles
+  en Haskell.
+-}
 crearUniverso = SetC.fromList (map Elem (map (\c -> [c]) (filter isPrint ['\000'..'\177'])))
 
+{-|
+  Función que devuelve el string envuelto por un Token cuyo constructor
+  sea TkStr o TkId.
+-}
 takeStr :: Token -> String
 takeStr (TkStr pos s) = s
 takeStr (TkId pos s) = s
 
+{-|
+  Función que ejecuta las instrucciones especiales del lenguaje
+-}
 ejecutarInstruccion :: Inst -> (Map.Map k a, AST)
 ejecutarInstruccion a = (Map.empty, Secuencia [])
 
+{-|
+  Devuelve la posición ocupada por Tokens cuyo
+  constructor sea TkStr o TkId
+-}
 takePosIdStr :: Token -> (Int,Int)
 takePosIdStr (TkStr pos s) = pos
 takePosIdStr (TkId pos s) = pos
 
+{-|
+  Devuelve la posición ocupada por un Token
+-}
 takePos :: Token -> (Int,Int)
 takePos (TkEs a) = a
 takePos (TkDe a) = a
@@ -529,6 +623,12 @@ takePos (TkDigito a) = a
 takePos (TkSimbolo a) = a
 takePos (TkNegar a) = a
 
+
+{-|
+  Transforma un mapa que contiene claves de tipo Token
+  a otro mapa que contiene claves del tipo String, siendo
+  estos strings los que los Tokens guardan.
+-}
 transformarMapa :: Map.Map Token Symbol
                 -> Map.Map String Symbol
 transformarMapa mapa = Map.fromList (obtenerStrings (Map.toList mapa))

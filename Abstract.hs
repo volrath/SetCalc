@@ -24,61 +24,110 @@ data AST = Expr Expresion -- ^ Nodo expresión
          | Secuencia [Expresion] -- ^ Secuencia de expresiones
          deriving (Eq, Show)
 
-data Symbol = Symbol (Maybe Dominio, Maybe Conjunto)
+{-|
+  TAD /Symbol/:
+  Tipo abstracto de datos que modela un símbolo del lenguaje
+  de la calculadora SetCalc.
+-}
+data Symbol = Symbol (Maybe Dominio, Maybe Conjunto) -- ^ Un símbolo puede ser un Dominio, un Conjunto o ambos.
             deriving (Eq,Show)
 
-data Dominio = Dominio (SetC Elemento)
+{-|
+  TAD /Dominio/:
+  Tipo abstracto de datos que modela un dominio del lenguaje
+  de calculadora /SetCalc/
+-}
+data Dominio = Dominio (SetC Elemento) -- ^ Dominio
              deriving (Eq, Show)
 
-data Conjunto = Conjunto (SetC Elemento)
+{-|
+  TAD /Conjunto/:
+  Tipo abstracto de datos que modela un cojunto del lenguaje
+  de calculadora /SetCalc/
+-}
+data Conjunto = Conjunto (SetC Elemento) -- ^ Conjunto
               deriving (Eq, Show)
 
-data Inst = Estado
-          | OlvidarTodo
-          | Olvidar [Token]
-          | Fin
+{-|
+  TAD /Inst/:
+  Tipo abstracto de datos que modela una instrucción especial
+  del lenguaje de calculadora /SetCalc/
+-}
+data Inst = Estado -- ^ La instrucción "estado"
+          | OlvidarTodo -- ^ La instrucción "olvidar todo"
+          | Olvidar [Token] -- ^ La instrucción "olvidar var [, var2,...]
+          | Fin -- ^ La instrucción "fin"
           deriving (Eq,Show)
 
-data Expresion = Union Expresion Expresion
-               | Interseccion Expresion Expresion
-               | Diferencia Expresion Expresion
-               | Cartesiano Expresion Expresion
-               | Complemento Expresion
-               | Partes Expresion
-               | OpUniverso Univ
-               | OpExtension Ext
-               | OpConj Conjunto
-	       | OpId Token
-               | Asignacion Token Expresion
+{-|
+  TAD /Expresion/:
+  Tipo abstracto de datos que modela una expresión del lenguaje
+  de calculadora /SetCalc/
+-}
+data Expresion = Union Expresion Expresion -- ^ Unión de dos conjuntos
+               | Interseccion Expresion Expresion -- ^ Intersección de dos conjuntos
+               | Diferencia Expresion Expresion -- ^ Diferencia de dos conjuntos
+               | Cartesiano Expresion Expresion -- ^ Producto cartesiano de dos conjuntos
+               | Complemento Expresion -- ^ Complemento de un conjunto.
+               | Partes Expresion -- ^ Conjunto de partes de un conjunto.
+               | OpUniverso Univ -- ^ Expresión que genera un universo de instancias.
+               | OpExtension Ext -- ^ Conjunto definido por extensión.
+               | OpConj Conjunto -- ^ Conjunto.
+	       | OpId Token -- ^ Identificador de algún conjunto.
+               | Asignacion Token Expresion -- ^ Asignación de algún conjunto a una variable
                  deriving (Eq,Show)
 
-data Ext = ConjuntoExt (SetC Elemento) [Generador] [Filtro]
+{-|
+  TAD /Ext/:
+  Tipo abstracto de datos que modela un conjunto definido por extensión
+-}
+data Ext = ConjuntoExt (SetC Elemento) [Generador] [Filtro] -- ^ Conjunto definido por extensión.
          deriving (Eq,Show)
 
-data Generador = Gen String Token
+{-|
+  TAD /Generador/:
+  Tipo abstracto de datos que modela un generador de un conjunto definido
+  por extensión en el lenguaje de calculadora /SetCalc/.
+-}
+data Generador = Gen String Token -- ^ Generador.
                deriving (Eq,Show)
 
-data Filtro = FilIgual Elemento Elemento
-            | FilMenor Elemento Elemento
-            | FilMayor Elemento Elemento
-            | FilMayuscula Elemento
-            | FilLetra Elemento
-            | FilDigito Elemento
-            | FilSimbolo Elemento
-            | FilNot Filtro
-            | Miembro Elemento Conjunto
-            | Vacio Expresion
-            | SubConjunto Conjunto Conjunto
+{-|
+  TAD /Filtro/:
+  Tipo abstracto de datos que modela un filtro de un conjunto definido
+  por extensión en el lenguaje de calculadora /SetCalc/.
+-}
+data Filtro = FilIgual Elemento Elemento -- ^ Igualdad.
+            | FilMenor Elemento Elemento -- ^ Menor que.
+            | FilMayor Elemento Elemento -- ^ Mayor que.
+            | FilMayuscula Elemento -- ^ Mayúscula.
+            | FilLetra Elemento -- ^ Letra.
+            | FilDigito Elemento -- ^ Digito.
+            | FilSimbolo Elemento -- ^ Símbolo.
+            | FilNot Filtro -- ^ Not
+            | Miembro Elemento Conjunto -- ^ Miembro.
+            | Vacio Expresion -- ^ Vacío
+            | SubConjunto Conjunto Conjunto -- ^ Sumconjunto
             deriving (Eq,Show)
 
-data Univ = UniversoT Conjunto
-          | UniversoDe Token
+{-|
+  TAD /Univ/:
+  Tipo abstracto de datos que modela un conjunto que posee el universo
+  de instancias del lenguaje o el universo de una variable en particular.
+-}
+data Univ = UniversoT Conjunto -- ^ Universo de todos los caracteres imprimibles en haskell.
+          | UniversoDe Token -- ^ Universo de todas las instancias de una variable específica.
           deriving (Eq,Show)
 
-data Elemento = Elem String
-              | Ident Token
-              | Cto (SetC Elemento)
-              | Lista [Elemento]
-              | Rango Char Char
+{-|
+  TAD /Elemento/:
+  Tipo abstracto de datos que modela los elementos que existen en el
+  lenguaje de calculadora /SetCalc/.
+-}
+data Elemento = Elem String -- ^ Un elemento cualquiera.
+              | Ident Token -- ^ Un identificador.
+              | Cto (SetC Elemento) -- ^ Un conjunto de elementos.
+              | Lista [Elemento] -- ^ Una lista de elementos.
+              | Rango Char Char -- ^ Un rango de elementos.
               deriving (Eq,Show)
 
