@@ -1,6 +1,8 @@
 module Abstract (
         AST (..),
         Symbol(..),
+        Dominio(..),
+        Conjunto(..),
         Var(..),
         Expresion(..),
         Inst(..),
@@ -15,13 +17,20 @@ import SetC
 
 data AST = Expr Expresion
          | Secuencia [Expresion]
-              deriving (Eq, Show)
-
+         deriving (Eq, Show)
+{-
 data Symbol = Conjunto (SetC Elemento)
             | Dominio (SetC Elemento)
             deriving (Eq, Show)
+-}
 
-data Conjunto = C Var (SetC Elemento)
+data Symbol = Symbol (Maybe Dominio, Maybe Conjunto)
+            deriving (Eq,Show)
+
+data Dominio = Dominio (SetC Elemento)
+             deriving (Eq, Show)
+
+data Conjunto = Conjunto (SetC Elemento) -- (Dominio)Var
               deriving (Eq, Show)
 
 data Var = Var String
@@ -45,7 +54,7 @@ data Op = Union Op Op
         | Partes Op
         | OpUniverso Univ
         | OpExtension Ext
-        | OpConj Symbol
+        | OpConj Conjunto -- Symbol
 	| OpId Var
         | Asignacion Var Op
         deriving (Eq,Show)
@@ -64,12 +73,12 @@ data Filtro = FilIgual Elemento Elemento
             | FilDigito Elemento
             | FilSimbolo Elemento
             | FilNot Filtro
-            | Miembro Elemento Symbol
+            | Miembro Elemento Conjunto
             | Vacio Op
-            | SubConjunto Symbol Symbol
+            | SubConjunto Conjunto Conjunto
             deriving (Eq,Show)
 
-data Univ = UniversoT Symbol
+data Univ = UniversoT Conjunto
           | UniversoDe Var
           deriving (Eq,Show)
 

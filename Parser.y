@@ -37,7 +37,6 @@ import qualified Data.Map as Map
         de                       { TkDe a            }
         tiene                    { TkTiene a         }
         dominio                  { TkDominio a       }
-        conjunto                 { TkConjunto a      }
         universo                 { TkUniverso a      }
         universal                { TkUniversal a     }
         str                      { TkStr pos s       }
@@ -92,8 +91,8 @@ Prog   : Decl '.'                                                    { ($1, Secu
        | Expr '.'                                                    { (Map.empty, Expr $1) }
 
 Decl  : Lista_id es dominio Dominio                                  { insertarDominio $1 $4 }
-      | Lista_id tiene dominio Dominio                               { insertarConjunto $1 $4 }
-      | Lista_id tiene dominio id                                    { insertarConjunto $1 (Dominio (SetC.fromList [Ident (Var (takeStr $4))])) }
+      | Lista_id tiene dominio Dominio                               { Map.empty }--insertarConjunto $1 $4 }
+      | Lista_id tiene dominio id                                    { Map.empty }--insertarConjunto $1 (Dominio (SetC.fromList [Ident (Var (takeStr $4))])) }
 
 Expr  : Instr                                                        { Instruccion $1 }
       | OpConj                                                       { Operacion $1 }
@@ -238,7 +237,8 @@ syntaxError (t:ts) = error $
   
   Función que concatena listas encapsuladas en tuplas.
 -}
-constructor (m, a) (n, b) = ((Map.union m n), (construirAST a b))
+
+constructor (m, a) (n, b) = ((unirMapas m n), (construirAST a b))
 
 construirAST :: AST -> AST -> AST
 construirAST (Expr a) (Expr b) = Secuencia [a, b]
@@ -246,7 +246,50 @@ construirAST (Expr a) (Secuencia b) = Secuencia ([a] ++ b)
 construirAST (Secuencia a) (Expr b) = Secuencia (a ++ [b])
 construirAST (Secuencia a) (Secuencia b) = Secuencia (a ++ b)
 
+unirMapas map1 map2 = unirMapas' map1 (Map.toList map2)
+
+unirMapas' :: Map.Map Var Symbol -> [(Var, Symbol)] -> Map.Map Var Symbol
+unirMapas' map1 [] = map1
+unirMapas' map1 (x:[]) = crearDominio map1 x
+unirMapas' map1 (x:xs) = Map.union mapR (unirMapas' mapR xs)
+    where
+      mapR = crearDominio map1 x
+
+crearDominio :: Map.Map Var Symbol -> (Var, Symbol) -> Map.Map Var Symbol
+crearDominio map (k, v) =
+    case  Map.lookup k map of
+      Just (Symbol (Just dom, Just con)) -> error $ "ERROR!!!"
+      Just (Symbol (Just dom, Nothing)) -> error $ "ERrror!."
+      Just (Symbol (Nothing, Just con)) -> Map.union (Map.singleton k (Symbol (Just (takeDom v), Just con))) map
+      Nothing -> Map.insert k (Symbol (Just (takeDom v), Nothing)) map
+
+takeDom :: Symbol -> Dominio
+takeDom (Symbol (Just a, _)) = a
+takeDom (Symbol (Nothing, _)) = error $ "hola, no deberia pasar"
+
+-- --------------------------------
+-- INSERTAR COSAS
+insertarDominio :: [Var] -> Dominio -> Map.Map Var Symbol
+insertarDominio [] dom = Map.empty
+insertarDominio (x:xs) dom = unirMapas' (Map.singleton x (Symbol (Just dom, Nothing))) (map (hacerTupla dom) xs)
+
+hacerTupla :: Dominio -> Var -> (Var, Symbol)
+hacerTupla dom x = (x, (Symbol (Just dom, Nothing)))
+
+insertarConjunto (x:[]) dom = Map.singleton x (Symbol (Nothing, (Just (Conjunto (SetC.emptySet)))))
+insertarConjunto (x:xs) dom = Map.union (Map.singleton x (Symbol (Nothing, Nothing))) (insertarDominio xs dom)
+
+existeConjunto var map = case Map.lookup var map of
+                           Just (a, Just cto) -> Just (a, Just cto)
+                           Just (a, Nothing) -> Nothing
+                           Nothing -> Nothing
+
+
+
+
+
 -- --------------
+-- FUNCIONES RANDOM
 doList [(Lista a)] [(Lista b)] = [Lista a, Lista b]
 doCto [(Cto a)] [(Cto b)] = [Cto a, Cto b]
 
@@ -255,14 +298,4 @@ crearUniverso = SetC.fromList (map Elem (map (\c -> [c]) (filter isPrint ['\000'
 takeStr :: Token -> String
 takeStr (TkStr pos s) = s
 takeStr (TkId pos s) = s
-
--- --------------------------------
-
--- Faltan los chequeos
-insertarDominio (x:[]) dom = Map.singleton x dom
-insertarDominio (x:xs) dom = Map.union (Map.singleton x dom) (insertarDominio xs dom)
-
-insertarConjunto (x:[]) dom = Map.singleton x (Conjunto (SetC.emptySet))
-insertarConjunto (x:xs) dom = Map.union (Map.singleton x (Conjunto (SetC.emptySet))) (insertarDominio xs dom)
-
 }
