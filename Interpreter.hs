@@ -82,9 +82,7 @@ type TupParser = (SymTable, AST)
 
 interpreter :: TupParser
             -> IO()
-interpreter tp@(map, ast) = case chequeoEstructural tp of
-                              Nothing -> putStr $ printOperations map ast
-                              Just errs -> error $ errs
+interpreter tp@(map, ast) = putStr $ printOperations map ast
 
 printOperations :: SymTable
                 -> AST
@@ -101,30 +99,20 @@ chequeoDinamico (mapa, (Secuencia exprs)) = foldl chequeoDinamico' mapa exprs
 chequeoDinamico' :: SymTable
                  -> Expresion
                  -> SymTable
-chequeoDinamico' mapa (Union e1 e2) = Map.union mapa (Map.union (chequeoDinamico' mapa e2) (chequeoDinamico' mapa e1))
-chequeoDinamico' mapa (Interseccion e1 e2) = Map.union mapa (Map.union (chequeoDinamico' mapa e2) (chequeoDinamico' mapa e1))
-chequeoDinamico' mapa (Diferencia e1 e2) = Map.union mapa (Map.union (chequeoDinamico' mapa e2) (chequeoDinamico' mapa e1))
-chequeoDinamico' mapa (Cartesiano e1 e2) = Map.union mapa (Map.union (chequeoDinamico' mapa e2) (chequeoDinamico' mapa e1))
+chequeoDinamico' mapa (Union e1 e2) = Map.union (Map.union (chequeoDinamico' mapa e2) (chequeoDinamico' mapa e1)) mapa
+chequeoDinamico' mapa (Interseccion e1 e2) = Map.union (Map.union (chequeoDinamico' mapa e2) (chequeoDinamico' mapa e1)) mapa
+chequeoDinamico' mapa (Diferencia e1 e2) = Map.union (Map.union (chequeoDinamico' mapa e2) (chequeoDinamico' mapa e1)) mapa
+chequeoDinamico' mapa (Cartesiano e1 e2) = Map.union (Map.union (chequeoDinamico' mapa e2) (chequeoDinamico' mapa e1)) mapa
 chequeoDinamico' mapa (Complemento e) = chequeoDinamico' mapa e
 chequeoDinamico' mapa (Partes e) = chequeoDinamico' mapa e
-chequeoDinamico' mapa (Asignacion var e) =  case SetC.subSet newVal $ dominioDe var of
+chequeoDinamico' mapa (Asignacion var e) =  case (SetC.subSet newVal (dominioDe var)) of
                                              True  -> actualizarConjS (takeStr var) newVal (chequeoDinamico' mapa e)
                                              False -> showErr var e
     where
       dominioDe var = dominioSetC mapa $ conjuntoDom $ takeConj (mapa Map.! (takeStr var))
-      newVal = calcularExpresion mapa e
+      newVal = calcularExpresion mapa (Asignacion var e)
       showErr var e = error $ "El resultado de la expresion " ++ (show e) ++ " no es compatible con el dominio de la variable " ++ (takeStr var) ++ " - linea: " ++ (show $ fst $ takePos var) ++ ", columna: " ++ (show $ snd $ takePos var)
 chequeoDinamico' mapa _ = mapa
--- chequeoDinamico' mapa (Asignacion var e) = case SetC.takeType $ newVal of
---                                             Nothing -> case SetC.takeType $ dominioDe var of
---                                                          Nothing -> Map.empty
---                                                          Just l(e:es) -> case sonElementos l of
---                                                                            True  -> Map.insert var newVal
---                                                                            False -> error $ showErr var e
---                                             Just l1@(e1:es1) -> case SetC.takeType $ dominioDe var of
---                                                                   Nothing -> error $ showErr var e
---                                                                   Just (e2:es2) -> case compararTipos e1 e2 of
---                                                                                      True ->
 
 
 calcularExpresion :: SymTable
@@ -322,7 +310,7 @@ actualizarConjS :: String
                 -> SymTable
                 -> SymTable
 actualizarConjS var nconj m = Map.insertWith sobreescribirConj var (Symbol (Nothing, Just (Conjunto nconj (Dominio (SetC.emptySet))))) m
-    where sobreescribirConj (Symbol (od, oc)) (Symbol (_, Just (Conjunto ncs ncd))) = case oc of
+    where sobreescribirConj (Symbol (_, Just (Conjunto ncs ncd))) (Symbol (od, oc)) = case oc of
                                                          Nothing -> (Symbol (od, Just (Conjunto ncs ncd)))
                                                          Just (Conjunto sc d) -> (Symbol (od, Just (Conjunto ncs d)))
 

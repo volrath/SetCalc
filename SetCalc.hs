@@ -78,12 +78,20 @@ promptAndGet = do
 
 loop :: Map.Map String Symbol 
      -> IO()
-
 loop mapaActual = do
   line <- promptAndGet
-  tp <- return $ procesarLinea mapaActual line
-  catchSilently tp mapaActual
+  C.catch (loop' mapaActual line) fail
+      where fail e = do
+                    hPrint stderr e
+                    loop mapaActual
 
+loop' :: SymTable -> String -> IO()
+loop' mapaActual linea = do
+  tp' <- return $ (chequeoDinamico tp, snd tp)
+  interpreter tp'
+  loop $ fst tp'
+      where
+        tp = parsearLinea mapaActual linea
 
 {-|
   catchOrPrint
@@ -93,8 +101,8 @@ loop mapaActual = do
   los imprime por la salida de error estandar y permite recuperar
   el prompt.
 -}
-catchSilently ::  TupParser -- ^ La ejecución de las funciones parser y lexer sobre un string.
-              ->  Map.Map String Symbol 
+catchSilently :: TupParser -- ^ La ejecución de las funciones parser y lexer sobre un string.
+              -> SymTable
               -> IO() -- ^ La impresión del resultado de la ejecución de la función.
 catchSilently tup old = C.catch try (fail old)
     where 
@@ -105,10 +113,10 @@ catchSilently tup old = C.catch try (fail old)
 
 
 
-procesarLinea :: SymTable
+parsearLinea :: SymTable
               -> String
               -> TupParser
-procesarLinea mapa linea = case chequeoEstructural elTupParser of
+parsearLinea mapa linea = case chequeoEstructural elTupParser of
                              Nothing -> ((chequeoDinamico elTupParser), (snd elTupParser))
                              Just errs -> error $ errs
     where elTupParser = chequear mapa (lexer linea)
