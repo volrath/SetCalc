@@ -89,13 +89,11 @@ LProg  : Prog                                                        { $1 }
 
 Prog   : Decl '.'                                                    { ($1, Secuencia []) }
        | Expr '.'                                                    { (Map.empty, Expr $1) }
+       | Inst '.'                                                    { ejecutarInstruccion $1 }
 
 Decl  : Lista_id es dominio Dominio                                  { insertarDominio $1 $4 }
       | Lista_id tiene dominio Dominio                               { Map.empty }--insertarConjunto $1 $4 }
       | Lista_id tiene dominio id                                    { Map.empty }--insertarConjunto $1 (Dominio (SetC.fromList [Ident (Var (takeStr $4))])) }
-
-Expr  : Instr                                                        { Instruccion $1 }
-      | OpConj                                                       { Operacion $1 }
 
 Dominio : ConjuntoDom                                                { Dominio $1 }
         | universal                                                  { Dominio (crearUniverso) }
@@ -144,24 +142,24 @@ ListaArreglo : '[' ']'                                               { [Lista []
              | '[' ListaArreglo ']'                                  { [Lista $2] }
              | '[' ListaConj ']'                                     { [Lista $2] }
 
-Asig     : id ':=' OpConj                                            { Asignacion (Var (takeStr $1)) $3 }
+Asig     : id ':=' Expr                                            { Asignacion (Var (takeStr $1)) $3 }
 
-Instr    : estado                                                    { Estado }
+Inst     : estado                                                    { Estado }
          | olvidar todo                                              { OlvidarTodo }
          | olvidar Lista_id                                          { Olvidar $2 }
          | fin                                                       { Fin }
 
-OpConj   : Conjunto                                                  { OpConj $1 }
+Expr     : Conjunto                                                  { OpConj $1 }
          | id                                                        { OpId (Var (takeStr $1)) }
          | Universo                                                  { OpUniverso $1 }
          | Extension                                                 { OpExtension $1}
-         | OpConj '+' OpConj                                         { Union $1 $3 }
-         | OpConj '*' OpConj                                         { Interseccion $1 $3 }
-         | OpConj '-' OpConj                                         { Diferencia $1 $3}
-         | '~' OpConj                                                { Complemento $2 }
-         | OpConj '%' OpConj                                         { Cartesiano $1 $3 }
-         | OpConj '!'                                                { Partes $1 }
-         | '(' OpConj ')'                                            { $2 }
+         | Expr '+' Expr                                             { Union $1 $3 }
+         | Expr '*' Expr                                             { Interseccion $1 $3 }
+         | Expr '-' Expr                                             { Diferencia $1 $3}
+         | '~' Expr                                                  { Complemento $2 }
+         | Expr '%' Expr                                             { Cartesiano $1 $3 }
+         | Expr '!'                                                  { Partes $1 }
+         | '(' Expr ')'                                              { $2 }
          | Asig                                                      { $1 }
 
 Universo : universo                                                  { UniversoT (Conjunto (crearUniverso)) }
@@ -202,7 +200,7 @@ Filtro : Elemento '==' Elemento                                      { FilIgual 
        | not Filtro                                                  { FilNot $2 }
        | '(' Filtro ')'                                              { $2 }
        | miembro '(' Elemento ',' Conjunto ')'                       { Miembro $3 $5 }
-       | vacio '(' OpConj ')'                                        { Vacio $3 }
+       | vacio '(' Expr ')'                                          { Vacio $3 }
        | subconjunto '(' Conjunto ',' Conjunto ')'                   { SubConjunto $3 $5 }
 
 Elemento : id                                                        { Ident (Var (takeStr $1)) }
@@ -238,7 +236,9 @@ syntaxError (t:ts) = error $
   Función que concatena listas encapsuladas en tuplas.
 -}
 
-constructor (m, a) (n, b) = ((unirMapas m n), (construirAST a b))
+constructor (m, a) (n, b) = case Map.null (chequearAsignacion b) of
+                              True -> ((unirMapas m n), (construirAST a b))
+                              False -> ((unirMapas (actualizarMapa m (Map.toList (chequearAsignacion b))) n), (construirAST a b))
 
 construirAST :: AST -> AST -> AST
 construirAST (Expr a) (Expr b) = Secuencia [a, b]
@@ -263,6 +263,16 @@ crearDominio map (k, v) =
       Just (Symbol (Nothing, Just con)) -> Map.union (Map.singleton k (Symbol (Just (takeDom v), Just con))) map
       Nothing -> Map.insert k (Symbol (Just (takeDom v), Nothing)) map
 
+actualizarMapa :: Map.Map Var Symbol -> [(Var, Symbol)] -> Map.Map Var Symbol
+actualizarMapa map1 ((m2key, m2value):[]) = actualizarMapa' m2key map1
+actualizarMapa map1 ((m2key, m2value):m2s) = Map.union (actualizarMapa' m2key map1) (actualizarMapa map1 m2s)
+
+actualizarMapa' :: Var -> Map.Map Var Symbol -> Map.Map Var Symbol
+actualizarMapa' key map = case Map.member key map of
+                           Just (Symbol (_, Just con)) -> map
+                           Just (Symbol (_, Nothing)) -> error $ "La variable " ++ ((\(Var s) -> s) key) ++ " no esta definida."
+                           Nothing -> error $ "La variable " ++ ((\(Var s) -> s) key) ++ " no esta definida."
+
 takeDom :: Symbol -> Dominio
 takeDom (Symbol (Just a, _)) = a
 takeDom (Symbol (Nothing, _)) = error $ "hola, no deberia pasar"
@@ -285,8 +295,22 @@ existeConjunto var map = case Map.lookup var map of
                            Nothing -> Nothing
 
 
+chequearAsignacion :: AST -> Map.Map Var Symbol
+chequearAsignacion (Expr exp) = chequearAsignacion' exp Map.empty
+chequearAsignacion (Secuencia (x:[])) = chequearAsignacion' x Map.empty
+chequearAsignacion (Secuencia (x:xs)) = Map.union (chequearAsignacion' x Map.empty) (chequearAsignacion (Secuencia xs))
 
-
+chequearAsignacion' :: Expresion -> Map.Map Var Symbol -> Map.Map Var Symbol
+chequearAsignacion' exp map = case exp of
+                               Union x y -> Map.union (chequearAsignacion' x map) (chequearAsignacion' y map)
+                               Interseccion x y -> Map.union (chequearAsignacion' x map) (chequearAsignacion' y map)
+                               Diferencia x y -> Map.union (chequearAsignacion' x map) (chequearAsignacion' y map)
+                               Cartesiano x y -> Map.union (chequearAsignacion' x map) (chequearAsignacion' y map)
+                               Partes x -> Map.union map (chequearAsignacion' x map)
+                               Complemento x -> Map.union map (chequearAsignacion' x map)
+                               Asignacion var (Asignacion v x) -> Map.union map (chequearAsignacion' x map)
+                               Asignacion var x -> Map.insert var (Symbol (Nothing, Just (Conjunto (SetC.emptySet)))) map
+                               _ -> Map.empty
 
 -- --------------
 -- FUNCIONES RANDOM
@@ -298,4 +322,9 @@ crearUniverso = SetC.fromList (map Elem (map (\c -> [c]) (filter isPrint ['\000'
 takeStr :: Token -> String
 takeStr (TkStr pos s) = s
 takeStr (TkId pos s) = s
+
+-- -------------------
+-- Instrucciones
+ejecutarInstruccion :: Inst -> (Map.Map k a, AST)
+ejecutarInstruccion a = (Map.empty, Secuencia [])
 }

@@ -6,7 +6,6 @@ module Abstract (
         Var(..),
         Expresion(..),
         Inst(..),
-        Op(..),
         Ext(..),
         Generador(..),
         Filtro(..),
@@ -18,11 +17,6 @@ import SetC
 data AST = Expr Expresion
          | Secuencia [Expresion]
          deriving (Eq, Show)
-{-
-data Symbol = Conjunto (SetC Elemento)
-            | Dominio (SetC Elemento)
-            deriving (Eq, Show)
--}
 
 data Symbol = Symbol (Maybe Dominio, Maybe Conjunto)
             deriving (Eq,Show)
@@ -36,28 +30,24 @@ data Conjunto = Conjunto (SetC Elemento) -- (Dominio)Var
 data Var = Var String
          deriving (Eq,Show,Ord)
 
-data Expresion = Instruccion Inst
-               | Operacion Op
-               deriving (Eq,Show)
-
 data Inst = Estado
           | OlvidarTodo
           | Olvidar [Var]
           | Fin
           deriving (Eq,Show)
 
-data Op = Union Op Op
-        | Interseccion Op Op
-        | Diferencia Op Op
-        | Cartesiano Op Op
-        | Complemento Op
-        | Partes Op
-        | OpUniverso Univ
-        | OpExtension Ext
-        | OpConj Conjunto -- Symbol
-	| OpId Var
-        | Asignacion Var Op
-        deriving (Eq,Show)
+data Expresion = Union Expresion Expresion
+               | Interseccion Expresion Expresion
+               | Diferencia Expresion Expresion
+               | Cartesiano Expresion Expresion
+               | Complemento Expresion
+               | Partes Expresion
+               | OpUniverso Univ
+               | OpExtension Ext
+               | OpConj Conjunto -- Symbol
+	       | OpId Var
+               | Asignacion Var Expresion
+                 deriving (Eq,Show)
 
 data Ext = ConjuntoExt (SetC Elemento) [Generador] [Filtro]
          deriving (Eq,Show)
@@ -74,7 +64,7 @@ data Filtro = FilIgual Elemento Elemento
             | FilSimbolo Elemento
             | FilNot Filtro
             | Miembro Elemento Conjunto
-            | Vacio Op
+            | Vacio Expresion
             | SubConjunto Conjunto Conjunto
             deriving (Eq,Show)
 
