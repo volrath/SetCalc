@@ -132,7 +132,6 @@ calcularExpresion map1 (Asignacion t e) = calcularExpresion map1 e
 
 
 
-
 -- OJO: recordar que chequeoEstructural se llama asi:
 -- chequeoEstructural $ chequear mapaActual $ lexer line
 -- sabiendo que chequear recibe el mapa actual, corre el parser

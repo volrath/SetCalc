@@ -88,6 +88,9 @@ loop mapaActual = do
 loop' :: SymTable -> String -> IO()
 loop' mapaActual linea = do
   tp' <- return $ (chequeoDinamico tp, snd tp)
+  h <- openFile "/dev/null" WriteMode
+  hPrint h tp'
+  hClose h
   interpreter tp'
   loop $ fst tp'
       where
