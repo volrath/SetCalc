@@ -3,7 +3,6 @@ module Abstract (
         Symbol(..),
         Dominio(..),
         Conjunto(..),
-        Var(..),
         Expresion(..),
         Inst(..),
         Ext(..),
@@ -14,25 +13,30 @@ module Abstract (
 ) where
 import SetC
 
-data AST = Expr Expresion
-         | Secuencia [Expresion]
+{-|
+  TAD /AST/:
+  Tipo abstracto que modela un árbol abstracto de sintáxis
+  donde todos los nodos son expresiones del lenguaje de la
+  calculadora /SetCalc/.
+-}
+data AST = Expr Expresion -- * Nodo expresión
+         | Secuencia [Expresion] -- * Secuencia de expresiones
          deriving (Eq, Show)
 
+{-|
+-}
 data Symbol = Symbol (Maybe Dominio, Maybe Conjunto)
             deriving (Eq,Show)
 
 data Dominio = Dominio (SetC Elemento)
              deriving (Eq, Show)
 
-data Conjunto = Conjunto (SetC Elemento) -- (Dominio)Var
+data Conjunto = Conjunto (SetC Elemento)
               deriving (Eq, Show)
-
-data Var = Var String
-         deriving (Eq,Show,Ord)
 
 data Inst = Estado
           | OlvidarTodo
-          | Olvidar [Var]
+          | Olvidar [String]
           | Fin
           deriving (Eq,Show)
 
@@ -45,14 +49,14 @@ data Expresion = Union Expresion Expresion
                | OpUniverso Univ
                | OpExtension Ext
                | OpConj Conjunto -- Symbol
-	       | OpId Var
-               | Asignacion Var Expresion
+	       | OpId String
+               | Asignacion String Expresion
                  deriving (Eq,Show)
 
 data Ext = ConjuntoExt (SetC Elemento) [Generador] [Filtro]
          deriving (Eq,Show)
 
-data Generador = Gen Var Var
+data Generador = Gen String String
                deriving (Eq,Show)
 
 data Filtro = FilIgual Elemento Elemento
@@ -69,15 +73,13 @@ data Filtro = FilIgual Elemento Elemento
             deriving (Eq,Show)
 
 data Univ = UniversoT Conjunto
-          | UniversoDe Var
+          | UniversoDe String
           deriving (Eq,Show)
 
 data Elemento = Elem String
-              | Ident Var
+              | Ident String
               | Cto (SetC Elemento)
               | Lista [Elemento]
               | Rango Char Char
               deriving (Eq,Show)
 
-
--- parser $ lexer "foo es dominio {['a','b'], ['c','d']}."

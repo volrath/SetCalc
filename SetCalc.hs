@@ -25,6 +25,8 @@ import Lexer
 import Parser
 import Abstract
 
+type TupParser = (Map.Map Var Symbol, AST)
+
 {-|
    Función principal.
 
@@ -43,15 +45,26 @@ main =
            let loop = do
                  hSetBuffering stdout NoBuffering
                  line <- promptAndGet
-                 printTokensOrCatch (lexer line)
+                 catchOrPrint (parser $ lexer line)
                  loop
            loop
          else do
-           -- Se abre el archivo y se analiza
-           let iowork = map scanFile args
-           sequence_ iowork
+           if (length args) == 1
+             then do
+               -- Se abre el archivo y se analiza
+               content <- readFileOrCatch $ head args
+               case content of
+                 Right parserResult -> print parserResult
+                 Left err -> do
+                              hPutStr stderr $ "Imposible abrir el archivo " ++ (head args) ++ " debido a:"
+                              hPrint stderr err
+             else do hPutStr stderr $ "Modo de uso: ./SetCalc [archivo] -- Un unico archivo.\n"
 
+--
 -- Funciones auxiliares
+--
+-- Para el interpretador como consola
+--
 {-|
   promptAndGet
 
@@ -59,38 +72,39 @@ main =
   de la calculadora SetCalc y luego de retornar la línea
   introducida por el usuario.
 -}
-promptAndGet :: IO String -- ^ Línea leída por el usuario
+promptAndGet :: IO String -- ^ Línea leída desde la consola
 promptAndGet =
     putStr "SetCalc> "
     >> getLine
 
 {-|
-  scanFile
-  
-  Función que abre un archivo @fpath@ pasado por parámetro, lee
-  su contenido. Si hay alguna excepción es reportada y si no
-  se imprime los tokens leidos en ese archivo.
--}
-scanFile :: FilePath -- ^ Archivo a abrir.
-         -> IO () -- ^ Resultado de la lectura del archivo.
-scanFile fpath = do
-  content <- readFileOrCatch fpath
-  case content of
-    Right parserResult -> do
-      print parserResult
-    Left e -> do
-      hPutStr stderr ("Imposible abrir el archivo " ++ fpath ++ " debido a: ")
-      hPrint stderr e
+  catchOrPrint
 
+  Función que recibe la ejecucion del parser y el lexer sobre un
+  string, trata de imprimir dicha instruccion pero si hubo errores
+  los imprime por la salida de error estandar y permite recuperar
+  el prompt.
+-}
+catchOrPrint ::  TupParser -- ^ La ejecución de las funciones parser y lexer sobre un string.
+             -> IO() -- ^ La impresión del resultado de la ejecución de la función.
+catchOrPrint tup = C.catch (print tup) fail
+    where fail e = hPrint stderr e
+
+
+
+
+--
+-- Para el interpretador de archivos
+--
 {-|
   readFileOrCatch
   
-  Función que lee un archivo @fpath@ y devuelve la lista de tokens
-  encontrados en ese archivo o una excepción de no haber
-  podido abrir el archivo.
+  Función que lee un archivo @fpath@ y devuelve la Tupla del
+  Data.Map y el AST generados al analizar sintácticamente el
+  archivo o una excepción de no haber podido abrirlo.
 -}
 readFileOrCatch :: FilePath -- ^ Archivo a abrir.
-                -> IO (Either C.IOException (Map.Map Var Symbol, AST)) -- ^ Si no hubo fallos, devuelve una lista de tokens, en otro caso devuelve una Excepción
+                -> IO (Either C.IOException TupParser) -- ^ Si no hubo fallos, devuelve la tupla (Data.Map, AST) generada por el analizador sintáctico, en otro caso devuelve una Excepción
 readFileOrCatch fpath = catch (try fpath) fail
     where
       try f = do
@@ -98,19 +112,3 @@ readFileOrCatch fpath = catch (try fpath) fail
         let parserResult = parser $ lexer c
         return $ Right parserResult
       fail e = return (Left e)
-
-{-|
-  printTokensOrCatch
-  
-  Función que recibe una lista de @tokens@, trata de imprimirlos
-  y si encuentra una excepción, lo imprime por la la salida
-  estándar de errores.
--}
-printTokensOrCatch :: [Token] -- ^ Lista de tokens a imprimir
-                   -> IO () -- ^ Impresión del resultado
-printTokensOrCatch tokens = C.catch (print tokens) fail
-    where fail e = do
-            if (e == C.ExitException ExitSuccess)
-               then C.throwIO e
-               else hPrint stderr e
---     else print tokens

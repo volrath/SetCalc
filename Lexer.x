@@ -1,6 +1,17 @@
 {
 {-|
-  Primera aproximacion del Lexer.
+  /Analizador Lexicográfico/
+  
+  Traductores e Interpretadores CI3725
+  
+  
+  05-38675 Kristoffer Pantic <sktdude@gmail.com>
+  
+  04-36723 Daniel Barreto N. <daniel@ac.labf.usb.ve>
+  
+  Programa interpretado por /alex/ para generar un automata
+  que reconozca lexicográficamente el lenguaje de la cálculadora
+  /SetCalc/
 -}
 module Lexer (
               -- * Tipo abstracto
