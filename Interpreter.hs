@@ -128,7 +128,7 @@ chequeoDinamico' mapa (Asignacion var e) =  case (SetC.subSet newVal (dominioDe 
       showErr var e = "El resultado de la expresion " ++ (show e) ++ " no es compatible con el dominio de la variable " ++ (takeStr var) ++ " - linea: " ++ (show $ fst $ takePos var) ++ ", columna: " ++ (show $ snd $ takePos var) ++ "\n"
 chequeoDinamico' mapa (Instruccion e) = case e of
                                           Estado -> mapa
-                                          Olvidar ids -> mapa --POR AHORA!!!!!!! ACOMODAR!!!!!!!
+                                          Olvidar ids -> mapa
                                           OlvidarTodo -> ([], Map.empty)
                                           Fin -> ([], Map.empty)
 chequeoDinamico' mapa _ = mapa

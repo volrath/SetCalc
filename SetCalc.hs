@@ -151,12 +151,20 @@ revisarErrores :: (Map.Map String Symbol)
                -> AST
                -> Either String TupParser
 revisarErrores map map' intocable = case map' of
-                            Right (map1,Secuencia (x:[])) -> case revisarErrores' (map) (Right (map1,Secuencia [x])) of
-                                                               Right (map3,ast) -> Right (map3,intocable)
-                                                               Left (map3,err) -> Left err
-                            Right (map1,Secuencia (x:xs)) -> case revisarErrores' (map) (Right (map1,Secuencia [x])) of
-                                                               Right (mapb,a) -> revisarErrores mapb (Right (Map.empty,Secuencia xs)) intocable
-                                                               Left (map3,err) -> revisarErrores map (Left ((map1,Secuencia xs),err)) intocable
+                            Right (map1,Secuencia (x:[])) -> case x of
+                                                             Instruccion (Olvidar ids) -> case olvidarVariables ids map of 
+                                                                                          Right map2 -> Right (map2,intocable)
+                                                                                          Left err1 -> Left err1
+                                                             _ -> case revisarErrores' (map) (Right (map1,Secuencia [x])) of
+                                                                    Right (map3,ast) -> Right (map3,intocable)
+                                                                    Left (map3,err) -> Left err
+                            Right (map1,Secuencia (x:xs)) -> case x of
+                                                               Instruccion (Olvidar ids) -> case olvidarVariables ids map of
+                                                                                            Right map2 -> revisarErrores map2 (Right (map1,Secuencia xs)) intocable
+                                                                                            Left err1 -> revisarErrores map (Left((map1,Secuencia xs),err1)) intocable
+                                                               _ -> case revisarErrores' (map) (Right (map1,Secuencia [x])) of
+                                                                      Right (mapb,a) -> revisarErrores mapb (Right (Map.empty,Secuencia xs)) intocable
+                                                                      Left (map3,err) -> revisarErrores map (Left ((map1,Secuencia xs),err)) intocable
                             Right (map1,Secuencia []) -> case revisarErrores' (map) (Right (map1,Secuencia [])) of 
                                                            Right (map3,ast) -> Right (map3,intocable)
                                                            Left (map3,err) -> Left err
@@ -503,3 +511,17 @@ takePos (TkSimbolo a) = a
 takePos (TkNegar a) = a
 takePos (TkId pos a) = pos
 takePos (TkStr pos a) = pos
+
+olvidarVariables :: [Token]
+                 -> SymTable
+                 -> Either String SymTable
+
+olvidarVariables (x:[]) map = case Map.member (takeStr x) map of
+                                True -> Right(Map.delete (takeStr x) map)
+                                False -> Left("La variable "++ (takeStr x)++ " es usada en la linea "++ show (fst(takePos x)) ++ " y en la columna "++ show(snd(takePos x)) ++ " y no esta definida.")
+olvidarVariables (x:xs) map = case olvidarVariables [x] map of
+                                Right map1 -> olvidarVariables xs map1
+                                Left err -> case olvidarVariables xs map of
+                                              Right map2 -> Right map2
+                                              Left err2 -> Left (err ++ "\n" ++ err2)
+
