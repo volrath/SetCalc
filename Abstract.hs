@@ -55,7 +55,7 @@ data Conjunto = Conjunto (SetC Elemento) -- ^ Conjunto
 -}
 data Inst = Estado -- ^ La instrucción "estado"
           | OlvidarTodo -- ^ La instrucción "olvidar todo"
-          | Olvidar [Token] -- ^ La instrucción "olvidar var [, var2,...]
+          | Olvidar [Token] -- ^ La instrucción "olvidar var"
           | Fin -- ^ La instrucción "fin"
           deriving (Eq,Show)
 

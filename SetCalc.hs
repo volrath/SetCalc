@@ -41,7 +41,7 @@ main =
       if null args 
          then do
            -- Se corre el interpretador
-           putStr "Analizador lexicografico:\n"
+           putStr "Interpretador SetCalc:\n"
            let loop = do
                  hSetBuffering stdout NoBuffering
                  line <- promptAndGet
