@@ -20,7 +20,10 @@ import System.IO
 import System.Exit
 import System(getArgs)
 import qualified Control.Exception as C
+import qualified Data.Map as Map
 import Lexer
+import Parser
+import Abstract
 
 {-|
    Función principal.
@@ -73,8 +76,8 @@ scanFile :: FilePath -- ^ Archivo a abrir.
 scanFile fpath = do
   content <- readFileOrCatch fpath
   case content of
-    Right tokenslist -> do
-      printTokensOrCatch tokenslist
+    Right parserResult -> do
+      print parserResult
     Left e -> do
       hPutStr stderr ("Imposible abrir el archivo " ++ fpath ++ " debido a: ")
       hPrint stderr e
@@ -87,13 +90,13 @@ scanFile fpath = do
   podido abrir el archivo.
 -}
 readFileOrCatch :: FilePath -- ^ Archivo a abrir.
-                -> IO (Either C.IOException [Token]) -- ^ Si no hubo fallos, devuelve una lista de tokens, en otro caso devuelve una Excepción
+                -> IO (Either C.IOException (Map.Map Var Symbol, AST)) -- ^ Si no hubo fallos, devuelve una lista de tokens, en otro caso devuelve una Excepción
 readFileOrCatch fpath = catch (try fpath) fail
     where
       try f = do
         c <- readFile f
-        let tokens = lexer c
-        return $ Right tokens
+        let parserResult = parser $ lexer c
+        return $ Right parserResult
       fail e = return (Left e)
 
 {-|
@@ -105,23 +108,9 @@ readFileOrCatch fpath = catch (try fpath) fail
 -}
 printTokensOrCatch :: [Token] -- ^ Lista de tokens a imprimir
                    -> IO () -- ^ Impresión del resultado
-printTokensOrCatch tokens = C.catch (printOrKill tokens) fail
+printTokensOrCatch tokens = C.catch (print tokens) fail
     where fail e = do
             if (e == C.ExitException ExitSuccess)
                then C.throwIO e
                else hPrint stderr e
-
-{-|
-  printOrKill
-  
-  Función que verifica si el /token/ @TkFin@ es el primer
-  token de la lista de /tokens/ pasada por parámetro, en
-  este caso devuelve una excepción de salida. De lo
-  contrario imprime la lista de /tokens/
--}
-printOrKill :: [Token] -- ^ Lista de tokens
-            -> IO () -- ^ Impresión de la lista de tokens
-printOrKill tokens = do
-  if (head tokens) == TkFin (1,1)
-     then exitWith ExitSuccess
-     else print tokens
+--     else print tokens

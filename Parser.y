@@ -29,7 +29,7 @@ import Char
 import qualified Data.Map as Map
 }
 
-%name parser
+%name elNoParser
 %error { syntaxError }
 %tokentype { Token }
 %token
@@ -84,12 +84,12 @@ import qualified Data.Map as Map
 
 %%
 
-LProg  : Prog                                                        { $1 }
+LProg  : Prog                                                        { constructor (Right (Map.empty,Secuencia[])) $1 }
        | LProg Prog                                                  { constructor $1 $2 }
 
-Prog   : Decl '.'                                                    { ($1, Secuencia []) }
-       | Expr '.'                                                    { (Map.empty, Expr $1) }
-       | Inst '.'                                                    { ejecutarInstruccion $1 }
+Prog   : Decl '.'                                                    { detectarErrores($1, Secuencia []) }
+       | Expr '.'                                                    { (Right (Map.empty, Expr $1)) }
+       | Inst '.'                                                    { (Right (ejecutarInstruccion $1))}
 
 Decl  : Lista_id es dominio Dominio                                  { insertarDominio $1 $4 }
       | Lista_id tiene dominio Dominio                               { insertarConjunto $1 $4 }
@@ -225,6 +225,14 @@ Elemento : id                                                        { Ident (Va
 		Maybe Expr.
 
 -}
+type TupParser = (Map.Map Var Symbol, AST)
+
+parser :: [Token] -> TupParser
+parser toks = case elNoParser toks of
+                Right tup -> tup
+                Left (map,errs) -> error $ errs
+
+
 syntaxError :: [Token] -> a
 syntaxError (t:ts) = error $ 
                        "Error de sintaxis en el Token " ++ (show t) ++ "\n" ++
@@ -235,48 +243,72 @@ syntaxError (t:ts) = error $
   
   Función que concatena listas encapsuladas en tuplas.
 -}
-
-constructor (m, a) (n, b) = case Map.null (chequearAsignacion b) of
-                              True -> ((unirMapas m n), (construirAST a b))
-                              False -> ((unirMapas (actualizarMapa m (Map.toList (chequearAsignacion b))) n), (construirAST a b))
-
+constructor :: Either ((Map.Map Var Symbol), String) TupParser -> Either String TupParser -> Either ((Map.Map Var Symbol), String) TupParser
+constructor tup1 tup2 = case tup1 of
+                          Right (m, a) -> case tup2 of 
+                                            Right (n, b) -> case Map.null (chequearAsignacion b) of
+                                                       True -> case unirMapas m n of
+                                                                 Right res -> Right (res, (construirAST a b))
+                                                                 Left err2 -> Left (m,err2)
+                                                       False -> case (unirMapas (actualizarMapa m (Map.toList (chequearAsignacion b))) n) of
+                                                                  Right res -> Right (res, construirAST a b)
+                                                                  Left err2 -> Left (m,err2)
+                                            Left errs -> Left (m,errs)
+                          Left (m, errs) -> case tup2 of
+                                            Right (n, b) -> case Map.null (chequearAsignacion b) of
+                                                       True -> case unirMapas m n of
+                                                                 Right res -> Right (res, b)
+                                                                 Left err2 -> Left (m, errs ++ "\n" ++ err2)
+                                                       False -> case (unirMapas (actualizarMapa m (Map.toList (chequearAsignacion b))) n) of
+                                                                  Right res -> Right (res, b)
+                                                                  Left err2 -> Left (m, errs ++ "\n" ++ err2)
+                                            Left err -> Left (m, errs ++ "\n" ++ err)
+                                         
+                                               
 construirAST :: AST -> AST -> AST
 construirAST (Expr a) (Expr b) = Secuencia [a, b]
 construirAST (Expr a) (Secuencia b) = Secuencia ([a] ++ b)
 construirAST (Secuencia a) (Expr b) = Secuencia (a ++ [b])
 construirAST (Secuencia a) (Secuencia b) = Secuencia (a ++ b)
 
+unirMapas :: Map.Map Var Symbol -> Map.Map Var Symbol -> Either String (Map.Map Var Symbol)
 unirMapas map1 map2 = unirMapas' map1 (Map.toList map2)
 
-unirMapas' :: Map.Map Var Symbol -> [(Var, Symbol)] -> Map.Map Var Symbol
-unirMapas' map1 [] = map1
+unirMapas' :: Map.Map Var Symbol -> [(Var, Symbol)] -> Either String (Map.Map Var Symbol)
+unirMapas' map1 [] = Right map1
 unirMapas' map1 (x:[]) = crearValor map1 x
-unirMapas' map1 (x:xs) = Map.union mapR (unirMapas' mapR xs)
+unirMapas' map1 (x:xs) = case mapR of
+                           Right map2 -> case unirMapas' map2 xs of
+                                          Right m -> Right (Map.union map2 m)
+                                          Left errs -> Left errs
+                           Left err -> case unirMapas' map1 xs of
+                                         Right m -> Left err
+                                         Left errs -> Left (errs ++ "\n" ++ err)
     where
       mapR = crearValor map1 x
 
-crearValor :: Map.Map Var Symbol -> (Var, Symbol) -> Map.Map Var Symbol
+crearValor :: Map.Map Var Symbol -> (Var, Symbol) -> Either String (Map.Map Var Symbol)
 crearValor map x = case snd(x) of
                      Symbol(Just dom, _) -> crearDominio map (fst(x),Symbol(Just dom, Nothing))
                      Symbol(_, Just conj) -> crearConjunto map (fst(x),Symbol(Nothing, Just conj))
-                     _ -> error $ "Algo salio terriblemente mal"
+                     _ -> Left "Error 0x08042FF2"
                       
 
-crearDominio :: Map.Map Var Symbol -> (Var, Symbol) -> Map.Map Var Symbol
+crearDominio :: Map.Map Var Symbol -> (Var, Symbol) -> Either String (Map.Map Var Symbol)
 crearDominio map (k, v) =
     case  Map.lookup k map of
-      Just (Symbol (Just dom, Just con)) -> error $ "ERRORDom!!!"
-      Just (Symbol (Just dom, Nothing)) -> error $ "ERrrorDom!."
-      Just (Symbol (Nothing, Just con)) -> Map.union (Map.singleton k (Symbol (Just (takeDom v), Just con))) map
-      Nothing -> Map.insert k (Symbol (Just (takeDom v), Nothing)) map
+      Just (Symbol (Just dom, Just con)) -> Left ("La variable " ++ ((\(Var s) -> s) k) ++ " ya esta definida.")
+      Just (Symbol (Just dom, Nothing)) -> Left ("La variable " ++ ((\(Var s) -> s) k) ++ " ya esta definida.X")
+      Just (Symbol (Nothing, Just con)) -> Right (Map.union (Map.singleton k (Symbol (Just (takeDom v), Just con))) map)
+      Nothing -> Right (Map.insert k (Symbol (Just (takeDom v), Nothing)) map)
 
-crearConjunto :: Map.Map Var Symbol -> (Var, Symbol) -> Map.Map Var Symbol
+crearConjunto :: Map.Map Var Symbol -> (Var, Symbol) -> Either String (Map.Map Var Symbol)
 crearConjunto map (k, v) =
     case  Map.lookup k map of
-      Just (Symbol (Just dom, Just con)) -> error $ "ERRORConj!!!"
-      Just (Symbol (Nothing, Just con)) -> error $ "ERrrorConj!."
-      Just (Symbol (Just dom, Nothing)) -> Map.union (Map.singleton k (Symbol (Just dom , Just (takeConj v)))) map
-      Nothing -> Map.insert k (Symbol (Nothing , Just (takeConj v))) map
+      Just (Symbol (Just dom, Just con)) -> Left ("La variable " ++ ((\(Var s) -> s) k) ++ " ya esta definida.")
+      Just (Symbol (Nothing, Just con)) -> Left ("La variable " ++ ((\(Var s) -> s) k) ++ " ya esta definida.X")
+      Just (Symbol (Just dom, Nothing)) -> Right (Map.union (Map.singleton k (Symbol (Just dom , Just (takeConj v)))) map)
+      Nothing -> Right (Map.insert k (Symbol (Nothing , Just (takeConj v))) map)
 
 actualizarMapa :: Map.Map Var Symbol -> [(Var, Symbol)] -> Map.Map Var Symbol
 actualizarMapa map1 ((m2key, m2value):[]) = actualizarMapa' m2key map1
@@ -285,8 +317,8 @@ actualizarMapa map1 ((m2key, m2value):m2s) = Map.union (actualizarMapa' m2key ma
 actualizarMapa' :: Var -> Map.Map Var Symbol -> Map.Map Var Symbol
 actualizarMapa' key map = case Map.lookup key map of
                            Just (Symbol (_, Just con)) -> map
-                           Just (Symbol (_, Nothing)) -> error $ "La variable " ++ ((\(Var s) -> s) key) ++ " no esta definida."
-                           Nothing -> error $ "La variable " ++ ((\(Var s) -> s) key) ++ " no esta definida."
+                           Just (Symbol (_, Nothing)) -> "La variable " ++ ((\(Var s) -> s) key) ++ " no esta definida."
+                           Nothing -> "La variable " ++ ((\(Var s) -> s) key) ++ " no esta definida."
 
 takeDom :: Symbol -> Dominio
 takeDom (Symbol (Just a, _)) = a
@@ -298,16 +330,20 @@ takeConj (Symbol (_, Nothing)) = error $ "hola, no deberia pasar"
 
 -- --------------------------------
 -- INSERTAR COSAS
-insertarDominio :: [Var] -> Dominio -> Map.Map Var Symbol
-insertarDominio [] dom = Map.empty
-insertarDominio (x:xs) dom = unirMapas' (Map.singleton x (Symbol (Just dom, Nothing))) (map (hacerTuplaDom dom) xs)
+insertarDominio :: [Var] -> Dominio -> Either String (Map.Map Var Symbol)
+insertarDominio [] dom = Right Map.empty
+insertarDominio (x:xs) dom = case unirMapas' (Map.singleton x (Symbol (Just dom, Nothing))) (map (hacerTuplaDom dom) xs) of
+                               Right map1 -> Right map1
+                               Left errs -> Left  errs
 
 hacerTuplaDom :: Dominio -> Var -> (Var, Symbol)
 hacerTuplaDom dom x = (x, (Symbol (Just dom, Nothing)))
 
-insertarConjunto :: [Var] -> Dominio -> Map.Map Var Symbol
-insertarConjunto [] conj = Map.empty
-insertarConjunto (x:xs) conj = unirMapas' (Map.singleton x (Symbol (Nothing, Just (Conjunto (SetC.emptySet))))) (map (hacerTuplaConj) xs)
+insertarConjunto :: [Var] -> Dominio -> Either String (Map.Map Var Symbol)
+insertarConjunto [] conj = Right Map.empty
+insertarConjunto (x:xs) conj = case unirMapas' (Map.singleton x (Symbol (Nothing, Just (Conjunto (SetC.emptySet))))) (map (hacerTuplaConj) xs) of
+                                 Right map1 -> Right map1
+                                 Left errs -> Left errs
 
 hacerTuplaConj :: Var -> (Var, Symbol)
 hacerTuplaConj x = (x, (Symbol (Nothing, Just (Conjunto (SetC.emptySet)))))
@@ -332,9 +368,20 @@ chequearAsignacion' exp map = case exp of
                                Cartesiano x y -> Map.union (chequearAsignacion' x map) (chequearAsignacion' y map)
                                Partes x -> Map.union map (chequearAsignacion' x map)
                                Complemento x -> Map.union map (chequearAsignacion' x map)
-                               Asignacion var (Asignacion v x) -> Map.union map (chequearAsignacion' x map)
-                               Asignacion var x -> Map.insert var (Symbol (Nothing, Just (Conjunto (SetC.emptySet)))) map
+                               OpExtension (ConjuntoExt set gens fils) -> Map.union map (chequearGenerador gens)
+                               Asignacion var x -> Map.union (Map.insert var (Symbol (Nothing, Just (Conjunto (SetC.emptySet)))) map) (chequearAsignacion' x map)
                                _ -> Map.empty
+
+
+chequearGenerador :: [Generador] -> Map.Map Var Symbol
+chequearGenerador [] = Map.empty
+chequearGenerador ((Gen x y):xs) = Map.union (Map.singleton y (Symbol (Nothing, Just (Conjunto (SetC.emptySet))))) (chequearGenerador xs)
+
+detectarErrores :: ((Either String (Map.Map Var Symbol)), AST) -> Either String TupParser
+detectarErrores (map,ast) = case map of
+                              Right map1 -> Right (map1,ast)
+                              Left err -> Left err
+                              
 
 -- --------------
 -- FUNCIONES RANDOM
