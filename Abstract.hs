@@ -15,11 +15,14 @@ import SetC
 
 data AST = Expr Expresion
          | Secuencia [Expresion]
-              deriving (Eq,Show)
+              deriving (Eq, Show)
 
 data Symbol = Conjunto (SetC Elemento)
             | Dominio (SetC Elemento)
-            deriving (Eq,Show)
+            deriving (Eq, Show)
+
+data Conjunto = C Var (SetC Elemento)
+              deriving (Eq, Show)
 
 data Var = Var String
          deriving (Eq,Show,Ord)

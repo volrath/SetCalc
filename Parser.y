@@ -91,9 +91,9 @@ LProg  : Prog                                                        { $1 }
 Prog   : Decl '.'                                                    { ($1, Secuencia []) }
        | Expr '.'                                                    { (Map.empty, Expr $1) }
 
-Decl  : Lista_id es dominio Dominio                                  { insertValue $1 $4 }
-      | Lista_id tiene dominio Dominio                               { insertValue $1 $4 }
-      | Lista_id tiene dominio id                                    { insertValue $1 (Dominio (SetC.fromList [Ident (Var (takeStr $4))])) }
+Decl  : Lista_id es dominio Dominio                                  { insertarDominio $1 $4 }
+      | Lista_id tiene dominio Dominio                               { insertarConjunto $1 $4 }
+      | Lista_id tiene dominio id                                    { insertarConjunto $1 (Dominio (SetC.fromList [Ident (Var (takeStr $4))])) }
 
 Expr  : Instr                                                        { Instruccion $1 }
       | OpConj                                                       { Operacion $1 }
@@ -239,12 +239,17 @@ syntaxError (t:ts) = error $
                        "Seguido de: " ++ (unlines $ map show $ take 3 ts)
 
 {-|
-  concatTup
+  constructor
   
   Función que concatena listas encapsuladas en tuplas.
 -}
-constructor (m, (Secuencia a)) (n, (Expr b)) = (Map.union m n, Secuencia (a ++ [b]))
-constructor (m, (Expr a)) (n, (Secuencia b)) = (Map.union m n, Secuencia ([a] ++ b))
+constructor (m, a) (n, b) = ((Map.union m n), (construirAST a b))
+
+construirAST :: AST -> AST -> AST
+construirAST (Expr a) (Expr b) = Secuencia [a, b]
+construirAST (Expr a) (Secuencia b) = Secuencia ([a] ++ b)
+construirAST (Secuencia a) (Expr b) = Secuencia (a ++ [b])
+construirAST (Secuencia a) (Secuencia b) = Secuencia (a ++ b)
 
 -- --------------
 doList [(Lista a)] [(Lista b)] = [Lista a, Lista b]
@@ -258,11 +263,11 @@ takeStr (TkId pos s) = s
 
 -- --------------------------------
 
---insertValue :: [Var] -> Symbol -> Data.Map Var Symbol
--- Dominios
-insertValue (x:[]) (Dominio set) = Map.singleton x (Dominio set)
-insertValue (x:xs) (Dominio set) = Map.union (Map.singleton x (Dominio set)) (insertValue xs (Dominio set))
--- Conjuntos
-insertValue (x:[]) (Conjunto set) = Map.singleton x (Conjunto set)
-insertValue (x:xs) (Conjunto set) = Map.union (Map.singleton x (Conjunto set)) (insertValue xs (Conjunto set))
+-- Faltan los chequeos
+insertarDominio (x:[]) dom = Map.singleton x dom
+insertarDominio (x:xs) dom = Map.union (Map.singleton x dom) (insertarDominio xs dom)
+
+insertarConjunto (x:[]) dom = Map.singleton x (Conjunto (SetC.emptySet))
+insertarConjunto (x:xs) dom = Map.union (Map.singleton x (Conjunto (SetC.emptySet))) (insertarDominio xs dom)
+
 }
