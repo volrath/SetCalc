@@ -1,6 +1,4 @@
 Conjuntos por intencion..........................
 Filtros, Funciones predefinidas
 Terminar Complemento 
-Revisar operaciones de variables con nombres de dominio diferentes, Usar EQUIVALENCIA DE NOMBRES, no estructural. -
-Hacer Rango ".." -
 Hacer que no se pueda olvidar un dominio si es dominio de algun conjunto -

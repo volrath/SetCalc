@@ -127,7 +127,7 @@ Conjunto : '{' '}'                                                   { Conjunto 
          | '{' ListaTupla '}'                                        { Conjunto (SetC.fromList $2) (Dominio (SetC.emptySet)) }
 
 Alfa_ran : str                                                       { [Elem (takeStr $1)] }
-         | str '..' str                                              { [Rango (head $ takeStr $1) (head $ takeStr $3)] }
+         | str '..' str                                              { doRange $1 $3 }
          | Alfa_ran ',' Alfa_ran                                     { $1 ++ $3 }
 
 Conj : '{' '}'                                                       { Cto (SetC.emptySet) }
@@ -559,6 +559,13 @@ elUniverso = SetC.fromList (map Elem (map (\c -> [c]) (filter isPrint ['\000'..'
 
 -- DOCUMENTAR
 crearUniverso = Conjunto elUniverso (Dominio elUniverso)
+
+
+doRange :: Token
+        -> Token
+        -> [Elemento]
+doRange t1 t2 = map toElem [(head $ takeStr t1) .. (head $ takeStr t2)]
+    where toElem c = Elem [c]
 
 
 {-|
