@@ -74,11 +74,9 @@ import qualified Data.Map as Map
         not                      { TkNegar a         }
 
 %right ':='
-
 %left '+' '-' '*' '%'
 %nonassoc '~'
 %nonassoc '!'
-
 %left ','
 
 %%
@@ -92,7 +90,6 @@ Prog   : Decl '.'                                                    { detectarE
 
 Decl  : Lista_id es dominio Dominio                                  { insertarDominio $1 $4 }
       | Lista_id tiene dominio Dominio                               { insertarConjunto $1 $4 }
---      | Lista_id tiene dominio id                                    { insertarConjunto $1 (DominioID (Ident $4)) }
 
 Dominio : ConjuntoDom                                                { Dominio $1 }
         | id                                                         { DominioID (takeStr $1) }

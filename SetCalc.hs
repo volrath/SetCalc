@@ -46,9 +46,7 @@ main =
            let loop = do
                  hSetBuffering stdout NoBuffering
                  line <- promptAndGet
-                 case chequeoEstructural (Map.fromList [("bar",Symbol (Just (Dominio (SetC.emptySet)),Nothing)),("foo",Symbol (Just (Dominio (SetC.fromList [(Elem "1"), (Elem "2")])),Just (Conjunto (SetC.emptySet) (DominioID "foo")))),("z",Symbol (Just (DominioID "bar"),Just (Conjunto (SetC.emptySet) (Dominio (SetC.fromList [(Elem "1"), (Elem "2")])))))]) (chequear Map.empty (lexer line)) of
-                   Right tp -> catchSilently tp
-                   Left (errs,_) -> error $ errs
+                 catchSilently(chequear (Map.fromList [("foo",Symbol (Just (Dominio SetC.emptySet),Just (Conjunto SetC.emptySet (Dominio SetC.emptySet))))]) (lexer line))
                  loop
            loop
          else do
@@ -125,7 +123,7 @@ chequear map a = chequeo $ parser $ a
                    Left err -> error $ err
 
 revisarErrores :: (Map.Map String Symbol)
-               -> Either ((Map.Map String Symbol),String) TupParser
+               -> Either (TupParser,String) TupParser
                -> Either String TupParser
 revisarErrores map map' = case map' of
                             Right (map1,Secuencia (x:[])) -> case revisarErrores' (map) (Right (map1,Secuencia [x])) of
@@ -133,16 +131,16 @@ revisarErrores map map' = case map' of
                                                                Left (map3,err) -> Left err
                             Right (map1,Secuencia (x:xs)) -> case revisarErrores' (map) (Right (map1,Secuencia [x])) of
                                                                Right (mapb,a) -> revisarErrores mapb (Right (Map.empty,Secuencia xs))
-                                                               Left (map3,err) -> revisarErrores map (Left (map3,err))
+                                                               Left (map3,err) -> revisarErrores map (Left ((map1,Secuencia xs),err))
                             Right (map1,Secuencia []) -> case revisarErrores' (map) (Right (map1,Secuencia [])) of 
                                                            Right (map3,ast) -> Right (map3,ast)
                                                            Left (map3,err) -> Left err
-                            Left (maperr, err) -> case revisarErrores' map (Left err) of
-                                                    Right _ -> error $ "Error 0x123ABCF2"
-                                                    Left (map1,err2) -> Left (err++err2)
+                            Left ((maperr,asterr), err) -> case revisarErrores' map (Left ((maperr,asterr),err)) of
+                                                             Right _ -> error $ "Error 0x123ABCF2"
+                                                             Left (map1,err2) -> Left (err2)
                                             
 revisarErrores' :: (Map.Map String Symbol) -- ^ Tupla que puede ser TupParser en caso de no haber errores o en caso de haber errores de contexto,una tupla que contiene el Data.Map generado hasta el momento y un string con todos los errores concatenados.
-            -> Either String TupParser -- ^ Es TupParser en caso de que la expresion o declaración analizada no tenga errores de contexto o un String en caso contrario.
+            -> Either (TupParser,String) TupParser -- ^ Es TupParser en caso de que la expresion o declaración analizada no tenga errores de contexto o un String en caso contrario.
             -> Either ((Map.Map String Symbol), String) TupParser -- ^ Tupla que puede ser TupParser en caso de no haber errores o en caso de haber errores de contexto,una tupla que contiene el Data.Map generado hasta el momento y un string con todos los errores concatenados.
 
 revisarErrores' m tup2 = case tup2 of 
@@ -150,15 +148,24 @@ revisarErrores' m tup2 = case tup2 of
                                                 True -> case unirMapas m n of
                                                           Right res -> Right (res, b)
                                                           Left err2 -> Left (m,err2)
-                                                False -> case actualizarMapa m (Map.toList (chequearAsignacion b)) of
-                                                           Right res -> case unirMapas res n of
+                                                False -> case unirMapas m n of
+                                                           Right res -> case actualizarMapa res (Map.toList (chequearAsignacion b)) of
                                                                           Right res2 -> Right (res2, b)
-                                                                          Left err2 -> Left (m,err2)
-                                                           Left (m2,err) -> case unirMapas m2 n of
+                                                                          Left (m1,err2) -> Left (m,err2)
+                                                           Left err -> case actualizarMapa m (Map.toList (chequearAsignacion b)) of
                                                                               Right res2 -> Left (res2, err)
-                                                                              Left err2 -> Left (m, err ++ "\n" ++ err2)
-                              Left errs  -> Left (m,errs)
-
+                                                                              Left (m1,err2) -> Left (m, err ++ "\n" ++ err2)
+                              Left ((n,a),errs)  -> case Map.null (chequearAsignacion a) of 
+                                                      True -> case unirMapas m n of 
+                                                                Right res -> Left (m,errs)
+                                                                Left err2 -> Left (m,errs ++"\n" ++ err2)
+                                                      False -> case unirMapas m n of
+                                                                 Right res -> case actualizarMapa res (Map.toList (chequearAsignacion a)) of
+                                                                                Right res2 -> Left (m, errs)
+                                                                                Left (m1,err2) -> Left (m,errs ++ "\n" ++ err2)
+                                                                 Left err -> case actualizarMapa m (Map.toList (chequearAsignacion a)) of
+                                                                               Right res2 -> Left (m, err ++ "\n" ++ errs)
+                                                                               Left (m1,err2) -> Left (m, errs ++ "\n" ++ err ++ "\n" ++ err2)
 
 {-|
                 La función @construirAST@ concatena dos árboles sintácticos
@@ -220,9 +227,27 @@ crearValor :: Map.Map String Symbol -- ^ Mapa de símbolos donde se va a insertar
            -> Either String (Map.Map String Symbol) -- ^ Devuelve un String en caso de haber errores y un mapa de símbolos con el valor nuevo introducido en caso contrario.
 
 crearValor map x = case snd(x) of
-                     Symbol(Just dom, _) -> crearDominio map (fst(x),Symbol(Just dom, Nothing))
-                     Symbol(_, Just conj) -> crearConjunto map (fst(x),Symbol(Nothing, Just conj))
+                     Symbol(Just dom, Nothing) -> crearDominio map (fst(x),Symbol(Just dom, Nothing))
+                     Symbol(Nothing, Just conj) -> crearConjunto map (fst(x),Symbol(Nothing, Just conj))
+                     Symbol(Just dom, Just conj) -> crearSymbol map (fst(x),Symbol(Just dom, Just conj))
                      _ -> Left "Error 0x08042FF2"
+
+{-|
+                La función @crearDominio@ intenta insertar en un mapa de símbolos
+                una nueva entrada para una variable en su definición como Dominio,
+                en caso de ya existir este valor se genera un error de contexto y en
+                caso contrario se devuelve el mapa resultante.
+-}
+
+crearSymbol :: Map.Map String Symbol -- ^ Mapa donde se va a intentar insertar el valor.
+             -> (String, Symbol) -- ^ Entrada que se intentará insertar en el mapa de símbolos.
+             -> Either String (Map.Map String Symbol) -- ^ Devuelve el mapa resultante en caso de no haber errores de contexto y un String con el error en caso contrario.
+
+crearSymbol map (k, v) = case  Map.lookup (k) (map) of
+      Just (Symbol (Just dom, Just con)) -> Left ("Existe una doble declaracion en la linea , en la columna , ya existe un dominio con el nombre de variable " ++ k ++ ".\n")
+      Just (Symbol (Just dom, Nothing)) -> Left ("Existe una doble declaracion en la linea , en la columna , ya existe un dominio con el nombre de variable " ++ k ++ ".\n")
+      Just (Symbol (Nothing, Just con)) -> Left ("Existe una doble declaracion en la linea , en la columna , ya existe un conjunto con el nombre de variable " ++ k ++ ".\n")
+      Nothing -> Right (Map.insert k v map)
                       
 {-|
                 La función @crearDominio@ intenta insertar en un mapa de símbolos
