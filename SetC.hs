@@ -31,6 +31,7 @@ module SetC (
    fromList,
    toList,
    powerSet,
+   takeType,
    mapSet
 ) where
 
@@ -198,6 +199,10 @@ minusSet :: (Eq a) => SetC a -- ^ Conjunto
          -> SetC a -- ^ Conjunto
          -> SetC a -- ^ Conjunto resultante
 minusSet (Set x) (Set y) = Set (x \\ y)
+
+takeType :: SetC a
+         -> a
+takeType (Set x)  = head x
 
 
 {-|

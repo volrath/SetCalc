@@ -38,6 +38,7 @@ data Symbol = Symbol (Maybe Dominio, Maybe Conjunto) -- ^ Un símbolo puede ser u
   de calculadora /SetCalc/
 -}
 data Dominio = Dominio (SetC Elemento) -- ^ Dominio
+             | DominioID String
              deriving (Eq, Show)
 
 {-|
@@ -75,14 +76,29 @@ data Expresion = Union Expresion Expresion -- ^ Unión de dos conjuntos
                | OpConj Conjunto -- ^ Conjunto.
 	       | OpId Token -- ^ Identificador de algún conjunto.
                | Asignacion Token Expresion -- ^ Asignación de algún conjunto a una variable
-                 deriving (Eq,Show)
+                 deriving (Eq)
+instance Show Expresion where
+    show (Union e1 e2) = (show e1) ++ " + " ++ (show e2)
+    show (Interseccion e1 e2) = (show e1) ++ " * " ++ (show e2)
+    show (Diferencia e1 e2) = (show e1) ++ " - " ++ (show e2)
+    show (Cartesiano e1 e2) = (show e1) ++ " x " ++ (show e2)
+    show (Complemento e) = "~" ++ (show e)
+    show (Partes e) = (show e) ++ "!"
+    show (OpUniverso (UniversoT c)) = (show c)
+    show (OpUniverso (UniversoDe t)) = "Universo de " ++ (show $ takeStr t)
+    show (OpExtension e) = (show e)
+    show (OpConj c) = (show c)
+    show (OpId t) = (show $ takeStr t)
+    show (Asignacion t e) = (show $ takeStr t) ++ " := " ++ (show e)
 
 {-|
   TAD /Ext/:
   Tipo abstracto de datos que modela un conjunto definido por extensión
 -}
 data Ext = ConjuntoExt (SetC Elemento) [Generador] [Filtro] -- ^ Conjunto definido por extensión.
-         deriving (Eq,Show)
+         deriving (Eq)
+instance Show Ext where
+    show (ConjuntoExt c gs fs) = "{" ++ (show c) ++ " | " ++ (show gs) ++ ", " ++ (show fs) ++ "}"
 
 {-|
   TAD /Generador/:
@@ -90,7 +106,14 @@ data Ext = ConjuntoExt (SetC Elemento) [Generador] [Filtro] -- ^ Conjunto defini
   por extensión en el lenguaje de calculadora /SetCalc/.
 -}
 data Generador = Gen String Token -- ^ Generador.
-               deriving (Eq,Show)
+               deriving (Eq)
+instance Show Generador where
+    show (Gen s t) = (show s) ++ " <- " ++ (show $ takeStr t)
+
+-- newtype ListaGeneradores = LG [Generador] deriving (Eq)
+-- instance Show ListaGeneradores where
+--     show (LG (g:[])) = (show g)
+--     show (LG (g:gs)) = (show g) ++ ", " ++ (show gs)
 
 {-|
   TAD /Filtro/:
@@ -129,5 +152,18 @@ data Elemento = Elem String -- ^ Un elemento cualquiera.
               | Cto (SetC Elemento) -- ^ Un conjunto de elementos.
               | Lista [Elemento] -- ^ Una lista de elementos.
               | Rango Char Char -- ^ Un rango de elementos.
-              deriving (Eq,Show)
+              deriving (Eq)
+instance Show Elemento where
+    show (Elem s) = show s
+    show (Ident t) = "Var(" ++ (show $ takeStr t) ++ ")"
+    show (Cto c) = show c
+    show (Lista es) = show es
+    show (Rango c1 c2) = (show c1) ++ ".." ++ (show c2)
 
+{-|
+  Función que devuelve el string envuelto por un Token cuyo constructor
+  sea TkStr o TkId.
+-}
+takeStr :: Token -> String
+takeStr (TkStr pos s) = s
+takeStr (TkId pos s) = s
