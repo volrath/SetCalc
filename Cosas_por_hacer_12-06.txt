@@ -1,5 +1,0 @@
-1. Hacer errores de sintaxis bonitos.
-2. Revisar las variables en las declaraciones de conjuntos.
-3. Devolver las posiciones de los errores de contexto. (Usando Tokens en vez de Strings o usando monadic parser)
-4. Permitir que se almacenen el Data.Map en el prompt. (OPCIONAL)
-

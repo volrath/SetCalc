@@ -153,13 +153,15 @@ chequeoDinamico' mapa (Diferencia e1 e2) = mezclarMapas (mezclarMapas (chequeoDi
 chequeoDinamico' mapa (Cartesiano e1 e2) = mezclarMapas (mezclarMapas (chequeoDinamico' mapa e2) (chequeoDinamico' mapa e1)) mapa
 chequeoDinamico' mapa (Complemento e) = chequeoDinamico' mapa e
 chequeoDinamico' mapa (Partes e) = chequeoDinamico' mapa e
-chequeoDinamico' mapa (Asignacion var e) =  case (SetC.subSet newVal (dominioDe var)) of
+chequeoDinamico' mapa (Asignacion var e) =  case compararDominio var e of
                                              True  -> (fst mapa, actualizarConjS (takeStr var) newVal (snd (chequeoDinamico' mapa e)))
                                              False -> mezclarMapas mapa (showErr var e, snd mapa)
     where
       dominioDe var = dominioSetC (snd mapa) $ conjuntoDom $ takeConj ((snd mapa) Map.! (takeStr var))
       newVal = calcularExpresion (snd mapa) (Asignacion var e)
       showErr var e = "El resultado de la expresion " ++ (show e) ++ " no es compatible con el dominio de la variable " ++ (takeStr var) ++ " - linea: " ++ (show $ fst $ takePos var) ++ ", columna: " ++ (show $ snd $ takePos var) ++ "\n"
+      compararDominio var (OpId t) = (takeStr var) == (takeStr t)
+      compararDominio var _ = SetC.subSet newVal (dominioDe var)
 chequeoDinamico' mapa (Instruccion e) = case e of
                                           Estado -> mapa
                                           Olvidar ids -> mapa
@@ -298,7 +300,9 @@ verificarTipoConjunto set intocable = case SetC.takeType set of
                                         Just (x:[]) -> case x of
                                                          Elem s -> Nothing
                                                          Cto sc -> verificarTipoConjunto sc intocable
-                                                         Lista l -> verificarTipoConjunto (SetC.fromList l) intocable
+                                                         Tupla (a,b) -> case compararTipos a b of
+                                                                          True -> Nothing
+                                                                          False -> Just $ "\n  El tipo de datos del elemento " ++ (show intocable) ++ " esta mal definido"
                                                          _ -> Nothing
                                         Just elem@(x1:(x2:[])) -> case compararTipos x1 x2 of
                                                                     True  -> Nothing
@@ -321,10 +325,7 @@ compararTipos (Cto c1) (Cto c2) = case SetC.takeType c1 of
                                     Just elems -> case SetC.takeType c2 of
                                                     Nothing -> sonElementos elems
                                                     Just elems2 -> compararTipos (head elems) (head elems2)
-compararTipos (Lista []) (Lista ((Elem x2):es2)) = True
-compararTipos (Lista ((Elem x1):es1)) (Lista []) = True
-compararTipos (Lista []) (Lista []) = True
-compararTipos (Lista (e1:es1)) (Lista (e2:es2)) = compararTipos e1 e2
+compararTipos (Tupla (e1,es1)) (Tupla (e2,es2)) = compararTipos e1 e2
 compararTipos (Elem s1) (Elem s2) = True
 compararTipos _ _ = False
 
@@ -343,7 +344,7 @@ evalUniverso :: SymTable
              -> Univ
              -> SetC Elemento
 evalUniverso map (UniversoT (Conjunto cu d)) = cu
-evalUniverso map (UniversoDe t) = dominioSetC map $ conjuntoDom$ takeConj (map Map.! (takeStr t))
+evalUniverso map (UniversoDe t) = dominioSetC map $ takeDom (map Map.! (takeStr t))
 
 
 --evalComplemento :: Symtable

@@ -44,6 +44,7 @@ main =
       if null args 
          then do
            -- Se corre el interpretador
+           hSetBuffering stdout NoBuffering
            putStr "Interpretador SetCalc:\n"
            loop Map.empty
          else do
@@ -72,7 +73,6 @@ main =
 -}
 promptAndGet :: IO String -- ^ Línea leída desde la consola
 promptAndGet = do
-    hSetBuffering stdout NoBuffering
     putStr "SetCalc> "
     >> getLine
 
