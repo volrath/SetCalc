@@ -3,39 +3,30 @@ module Abstract (
         Symbol(..),
         Var(..),
         Expresion(..),
-        Funcion(..),
         Inst(..),
         Op(..),
         Ext(..),
         Generador(..),
         Filtro(..),
         Univ(..),
-        AlfaRan(..),
         Elemento(..)
 ) where
 import SetC
 
-data AST = Expresion
-         | Secuencia AST Expresion
-         deriving (Eq,Show)
+data AST = Expr Expresion
+         | Secuencia [Expresion]
+              deriving (Eq,Show)
 
-data Symbol = Conjunto (SetC AlfaRan)
+data Symbol = Conjunto (SetC Elemento)
             | Dominio (SetC Elemento)
             deriving (Eq,Show)
 
 data Var = Var String
-         deriving (Eq,Show)
+         deriving (Eq,Show,Ord)
 
-data Expresion = Asignacion Var Op
-               | Funcion Funcion
-               | Instruccion Inst
+data Expresion = Instruccion Inst
                | Operacion Op
                deriving (Eq,Show)
-
-data Funcion = Miembro Elemento Symbol
-             | Vacio Op
-             | SubConjunto Symbol Symbol
-             deriving (Eq,Show)
 
 data Inst = Estado
           | OlvidarTodo
@@ -49,13 +40,14 @@ data Op = Union Op Op
         | Cartesiano Op Op
         | Complemento Op
         | Partes Op
-        | Universo Univ
-        | Extension Ext
-        | Conj Symbol
-	| Id Var
+        | OpUniverso Univ
+        | OpExtension Ext
+        | OpConj Symbol
+	| OpId Var
+        | Asignacion Var Op
         deriving (Eq,Show)
 
-data Ext = ConjuntoExt [Var] [Generador] [Filtro]
+data Ext = ConjuntoExt (SetC Elemento) [Generador] [Filtro]
          deriving (Eq,Show)
 
 data Generador = Gen Var Var
@@ -69,18 +61,21 @@ data Filtro = FilIgual Elemento Elemento
             | FilDigito Elemento
             | FilSimbolo Elemento
             | FilNot Filtro
+            | Miembro Elemento Symbol
+            | Vacio Op
+            | SubConjunto Symbol Symbol
             deriving (Eq,Show)
 
-data Univ = UniversoT
+data Univ = UniversoT Symbol
           | UniversoDe Var
           deriving (Eq,Show)
-
-data AlfaRan = Rango Char Char
-             | Elemento Elemento
-             deriving (Eq,Show)
 
 data Elemento = Elem String
               | Ident Var
               | Cto (SetC Elemento)
               | Lista [Elemento]
+              | Rango Char Char
               deriving (Eq,Show)
+
+
+-- parser $ lexer "foo es dominio {['a','b'], ['c','d']}."

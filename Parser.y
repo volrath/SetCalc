@@ -25,6 +25,7 @@ module Parser (
 import Lexer
 import SetC
 import Abstract
+import Char
 import qualified Data.Map as Map
 }
 
@@ -33,15 +34,15 @@ import qualified Data.Map as Map
 %tokentype { Token }
 %token
         es                       { TkEs a            }
-        de                       { TkDe  a           }
+        de                       { TkDe a            }
         tiene                    { TkTiene a         }
         dominio                  { TkDominio a       }
         conjunto                 { TkConjunto a      }
         universo                 { TkUniverso a      }
         universal                { TkUniversal a     }
-        str                      { TkStr pos s         }
-        id                       { TkId pos s          }
-        '{'                      { TkALlave a         }
+        str                      { TkStr pos s       }
+        id                       { TkId pos s        }
+        '{'                      { TkALlave a        }
         '}'                      { TkCLlave a        }
         '['                      { TkACorchete a     }
         ']'                      { TkCCorchete a     }
@@ -64,7 +65,7 @@ import qualified Data.Map as Map
         subconjunto              { TkSubconjunto a   }
         estado                   { TkEstado a        }
         olvidar                  { TkOlvidar a       }
-        todo                     { TkTodo  a         }
+        todo                     { TkTodo a          }
         fin                      { TkFin a           }
         '=='                     { TkIgual a         }
         '<'                      { TkMenor a         }
@@ -76,121 +77,142 @@ import qualified Data.Map as Map
         not                      { TkNegar a         }
 
 %left '+' '-' '*' '%'
-%right '~'
-%left '!'
+%nonassoc '~'
+%nonassoc '!'
 
 %left ','
+%right ':='
 
 %%
 
-LProg  : Prog                                      { $1 }
-       | LProg Prog                                { concatTup $1 $2 }
+LProg  : Prog                                                        { $1 }
+       | LProg Prog                                                  { constructor $1 $2 }
 
-Prog   : Decl '.'                                  { ([$1], []) }
-       | Expr '.'                                  { ([], [$1]) }
+Prog   : Decl '.'                                                    { ($1, Secuencia []) }
+       | Expr '.'                                                    { (Map.empty, Expr $1) }
 
-Decl  : Lista_id es dominio Dominio                { ($1, $4) }
-      | Lista_id tiene dominio Dominio             { ($1, $4) }
-      | Lista_id tiene dominio id                  { ($1, Dominio (SetC.fromList [Ident (Var (takeStr $4))])) }
+Decl  : Lista_id es dominio Dominio                                  { insertValue $1 $4 }
+      | Lista_id tiene dominio Dominio                               { insertValue $1 $4 }
+      | Lista_id tiene dominio id                                    { insertValue $1 (Dominio (SetC.fromList [Ident (Var (takeStr $4))])) }
 
-Dominio : ConjuntoDom                              { Dominio $1 }
-        | universal                                { Dominio (SetC.emptySet) }
+Expr  : Instr                                                        { Instruccion $1 }
+      | OpConj                                                       { Operacion $1 }
 
-ConjuntoDom : '{' '}'                              { (SetC.emptySet) }
-            | '{' LAlfa '}'                        { (SetC.fromList $2) }
-            | '{' ListaConjDom '}'                 { (SetC.fromList $2) }
-            | '{' ListaArregloDom '}'              { (SetC.fromList $2) }
+Dominio : ConjuntoDom                                                { Dominio $1 }
+        | universal                                                  { Dominio (crearUniverso) }
 
-LAlfa : str                                        { [Elem (takeStr $1)] }
-      | LAlfa ',' str                              { $1 ++ [Elem (takeStr $3)] }
+Conjunto : ConjuntoCto                                               { Conjunto $1 }
 
-ListaConjDom : '{' '}'                             { [Cto (SetC.emptySet)] }
-             | '{' LAlfa '}'                       { [Cto (SetC.fromList $2)] }
-             | ListaConjDom ',' ListaConjDom       { doCto $1 $3 }
-             | '{' ListaConjDom '}'                { [Cto (SetC.fromList $2)] }
+ConjuntoDom : '{' '}'                                                { (SetC.emptySet) }
+            | '{' LAlfa '}'                                          { (SetC.fromList $2) }
+            | '{' ListaConjDom '}'                                   { (SetC.fromList $2) }
+            | '{' ListaArregloDom '}'                                { (SetC.fromList $2) }
 
-ListaArregloDom : '[' ']'                               { [Lista []] }
-                | '[' LAlfa ']'                         { [Lista $2] }
-                | ListaArregloDom ',' ListaArregloDom   { doList $1 $3 }
-                | '[' ListaArregloDom ']'               { [Lista $2] }
+LAlfa : str                                                          { [Elem (takeStr $1)] }
+      | LAlfa ',' str                                                { $1 ++ [Elem (takeStr $3)] }
 
-Lista_id : id                                      { [Var (takeStr $1)] }
-         | Lista_id ',' id                         { $1 ++ [Var (takeStr $3)] }
+ListaConjDom : '{' '}'                                               { [Cto (SetC.emptySet)] }
+             | '{' LAlfa '}'                                         { [Cto (SetC.fromList $2)] }
+             | ListaConjDom ',' ListaConjDom                         { doCto $1 $3 }
+             | '{' ListaConjDom '}'                                  { [Cto (SetC.fromList $2)] }
 
-Conjunto : '{' '}'                                 { Conjunto (SetC.emptySet) }
-         | '{' Alfa_ran '}'                        { Conjunto (SetC.fromList $2) }
-         | '{' ListaConj '}'                       { Conjunto (SetC.fromList $2) }
-         | '{' ListaArreglo '}'                    { Conjunto (SetC.fromList $2) }
+ListaArregloDom : '[' ']'                                            { [Lista []] }
+                | '[' LAlfa ']'                                      { [Lista $2] }
+                | ListaArregloDom ',' ListaArregloDom                { doList $1 $3 }
+                | '[' ListaArregloDom ']'                            { [Lista $2] }
 
-Alfa_ran : str                                     { [Elemento (Elem (takeStr $1))] }
-         | str '..' str                            { [Rango (head $ takeStr $1) (head $ takeStr $3)] }
-         | Alfa_ran ',' str                        { $1 ++ [Elemento (Elem (takeStr $3))] }
+Lista_id : id                                                        { [Var (takeStr $1)] }
+         | Lista_id ',' id                                           { $1 ++ [Var (takeStr $3)] }
 
-ListaConj : '{' '}'                                { [] }
-          | '{' Alfa_ran '}'                       { $2 }
-          | ListaConj ',' ListaConj                { $1 ++ $3 }
-          | '{' ListaConj '}'                      { $2 }
+ConjuntoCto : '{' '}'                                                { (SetC.emptySet) }
+            | '{' Alfa_ran '}'                                       { (SetC.fromList $2) }
+            | '{' ListaConj '}'                                      { (SetC.fromList $2) }
+            | '{' ListaArreglo '}'                                   { (SetC.fromList $2) }
 
-ListaArreglo : '[' ']'                             { [] }
-             | '[' Alfa_ran ']'                    { $2 }
-             | ListaArreglo ',' ListaArreglo       { $1 ++ $3 }
-             | '[' ListaArreglo ']'                { $2 }
+Alfa_ran : str                                                       { [Elem (takeStr $1)] }
+         | str '..' str                                              { [Rango (head $ takeStr $1) (head $ takeStr $3)] }
+         | Alfa_ran ',' str                                          { $1 ++ [Elem (takeStr $3)] }
 
-Expr     : Asig                                    { $1 }
-         | Func                                    { Funcion $1 }
-         | Instr                                   { Instruccion $1 }
-         | OpConj                                  { Operacion $1 }
+ListaConj : '{' '}'                                                  { [Cto (SetC.emptySet)] }
+          | '{' Alfa_ran '}'                                         { [Cto (SetC.fromList $2)] }
+          | ListaConj ',' ListaConj                                  { doCto $1 $3 }
+          | '{' ListaConj '}'                                        { [Cto (SetC.fromList $2)] }
+          | '{' ListaArreglo '}'                                     { [Cto (SetC.fromList $2)] }
 
-Asig     : id ':=' OpConj                          { Asignacion (Var (takeStr $1)) $3 }
+ListaArreglo : '[' ']'                                               { [Lista []] }
+             | '[' Alfa_ran ']'                                      { [Lista $2] }
+             | ListaArreglo ',' ListaArreglo                         { doList $1 $3 }
+             | '[' ListaArreglo ']'                                  { [Lista $2] }
+             | '[' ListaConj ']'                                     { [Lista $2] }
 
-Func     : miembro '(' Elemento ',' Conjunto ')'        { Miembro $3 $5 }
-         | vacio '(' OpConj ')'                         { Vacio $3 }
-         | subconjunto '(' Conjunto ',' Conjunto ')'    { SubConjunto $3 $5 }
+Asig     : id ':=' OpConj                                            { Asignacion (Var (takeStr $1)) $3 }
 
-Instr    : estado                                  { Estado }
-         | olvidar todo                            { OlvidarTodo }
-         | olvidar Lista_id                        { Olvidar $2 }
-         | fin                                     { Fin }
+Instr    : estado                                                    { Estado }
+         | olvidar todo                                              { OlvidarTodo }
+         | olvidar Lista_id                                          { Olvidar $2 }
+         | fin                                                       { Fin }
 
-OpConj   : Conjunto                                { Conj $1 }
-         | Universo                                { Universo $1 }
-         | Extension                               { Extension $1 }
-         | OpConj '+' OpConj                       { Union $1 $3 }
-         | OpConj '*' OpConj                       { Interseccion $1 $3 }
-         | OpConj '-' OpConj                       { Diferencia $1 $3}
-         | '~' OpConj                              { Complemento $2 }
-         | OpConj '%' OpConj                       { Cartesiano $1 $3 }
-         | OpConj '!'                              { Partes $1 }
-         | '(' OpConj ')'                          { $2 }
+OpConj   : Conjunto                                                  { OpConj $1 }
+         | id                                                        { OpId (Var (takeStr $1)) }
+         | Universo                                                  { OpUniverso $1 }
+         | Extension                                                 { OpExtension $1}
+         | OpConj '+' OpConj                                         { Union $1 $3 }
+         | OpConj '*' OpConj                                         { Interseccion $1 $3 }
+         | OpConj '-' OpConj                                         { Diferencia $1 $3}
+         | '~' OpConj                                                { Complemento $2 }
+         | OpConj '%' OpConj                                         { Cartesiano $1 $3 }
+         | OpConj '!'                                                { Partes $1 }
+         | '(' OpConj ')'                                            { $2 }
+         | Asig                                                      { $1 }
 
-Universo : universo                                { UniversoT }
-         | universo de id                          { UniversoDe (Var (takeStr $3)) }
+Universo : universo                                                  { UniversoT (Conjunto (crearUniverso)) }
+         | universo de id                                            { UniversoDe (Var (takeStr $3)) }
 
-Extension : '{' ListaArrId '|' LGenerador ',' LFiltro '}'    { ConjuntoExt $2 $4 $6 }
+Extension : '{' ConjuntoId '|' LGenerador ',' LFiltro '}'            { ConjuntoExt $2 $4 $6 }
+          | '{' ConjuntoId '|' LGenerador '}'                        { ConjuntoExt $2 $4 [] }
 
-ListaArrId : id                                    { [] }
-           | '[' Lista_id ']'                      { $2 }
+ConjuntoId : id                                                      { (SetC.fromList [(Ident (Var (takeStr $1)))]) }
+           | ListaArrAlfaId                                          { (SetC.fromList $1) }
+           | ListaConjAlfaId                                         { (SetC.fromList $1) }
 
-LGenerador : Generador                             { [$1] }
-           | LGenerador ',' Generador              { $1 ++ [$3] }
+ListaArrAlfaId : '[' ']'                                             { [Lista []] }
+               | '['ListaAlfaId ']'                                  { [Lista $2] }
+               | ListaArrAlfaId ',' ListaArrAlfaId                   { doList $1 $3 }
+               | '['ListaArrAlfaId ']'                               { [Lista $2] }
+               | '['ListaConjAlfaId ']'                              { [Lista $2] }
 
-Generador : id '<-' id                             { Gen (Var (takeStr $1)) (Var (takeStr $3)) }
+ListaConjAlfaId : '{' '}'                                            { [Cto (SetC.emptySet)] }
+                | '{' ListaAlfaId '}'                                { [Cto (SetC.fromList $2)] }
+                | ListaConjAlfaId ',' ListaConjAlfaId                { doCto $1 $3 }
+                | '{' ListaConjAlfaId '}'                            { [Cto (SetC.fromList $2)] }
+                | '{' ListaArrAlfaId '}'                             { [Cto (SetC.fromList $2)] }
 
-LFiltro : Filtro                                   { [$1] }
-        | LFiltro ',' Filtro                       { $1 ++ [$3] }
+ListaAlfaId : Elemento                                               { [$1] }
+            | ListaAlfaId ',' Elemento                               { $1 ++ [$3] }
 
-Filtro : Elemento '==' Elemento                    { FilIgual $1 $3 }
-       | Elemento '<' Elemento                     { FilMenor $1 $3 }
-       | Elemento '>' Elemento                     { FilMayor $1 $3 }
-       | mayuscula Elemento                        { FilMayuscula $2 }
-       | letra Elemento                            { FilLetra $2 }
-       | digito Elemento                           { FilDigito $2 }
-       | simbolo Elemento                          { FilSimbolo $2 }
-       | not Filtro                                { FilNot $2 }
-       | '(' Filtro ')'                            { $2 }
+LGenerador : Generador                                               { [$1] }
+           | LGenerador ',' Generador                                { $1 ++ [$3] }
 
-Elemento : id                                      { Ident (Var (takeStr $1)) }
-         | str                                     { Elem (takeStr $1) }
+Generador : id '<-' id                                               { Gen (Var (takeStr $1)) (Var (takeStr $3)) }
+
+LFiltro : Filtro                                                     { [$1] }
+        | LFiltro ',' Filtro                                         { $1 ++ [$3] }
+
+Filtro : Elemento '==' Elemento                                      { FilIgual $1 $3 }
+       | Elemento '<' Elemento                                       { FilMenor $1 $3 }
+       | Elemento '>' Elemento                                       { FilMayor $1 $3 }
+       | mayuscula Elemento                                          { FilMayuscula $2 }
+       | letra Elemento                                              { FilLetra $2 }
+       | digito Elemento                                             { FilDigito $2 }
+       | simbolo Elemento                                            { FilSimbolo $2 }
+       | not Filtro                                                  { FilNot $2 }
+       | '(' Filtro ')'                                              { $2 }
+       | miembro '(' Elemento ',' Conjunto ')'                       { Miembro $3 $5 }
+       | vacio '(' OpConj ')'                                        { Vacio $3 }
+       | subconjunto '(' Conjunto ',' Conjunto ')'                   { SubConjunto $3 $5 }
+
+Elemento : id                                                        { Ident (Var (takeStr $1)) }
+         | str                                                       { Elem (takeStr $1) }
 
 {
 
@@ -221,16 +243,26 @@ syntaxError (t:ts) = error $
   
   Función que concatena listas encapsuladas en tuplas.
 -}
-concatTup :: ([a], [b]) -- ^ Primera tupla
-          -> ([a], [b]) -- ^ Segunda tupla
-          -> ([a], [b]) -- ^ Tupla resultante
-concatTup (x,y) (w,z) = (w++x, y++z)
+constructor (m, (Secuencia a)) (n, (Expr b)) = (Map.union m n, Secuencia (a ++ [b]))
+constructor (m, (Expr a)) (n, (Secuencia b)) = (Map.union m n, Secuencia ([a] ++ b))
 
 -- --------------
 doList [(Lista a)] [(Lista b)] = [Lista a, Lista b]
 doCto [(Cto a)] [(Cto b)] = [Cto a, Cto b]
 
+crearUniverso = SetC.fromList (map Elem (map (\c -> [c]) (filter isPrint ['\000'..'\177'])))
+
 takeStr :: Token -> String
 takeStr (TkStr pos s) = s
 takeStr (TkId pos s) = s
+
+-- --------------------------------
+
+--insertValue :: [Var] -> Symbol -> Data.Map Var Symbol
+-- Dominios
+insertValue (x:[]) (Dominio set) = Map.singleton x (Dominio set)
+insertValue (x:xs) (Dominio set) = Map.union (Map.singleton x (Dominio set)) (insertValue xs (Dominio set))
+-- Conjuntos
+insertValue (x:[]) (Conjunto set) = Map.singleton x (Conjunto set)
+insertValue (x:xs) (Conjunto set) = Map.union (Map.singleton x (Conjunto set)) (insertValue xs (Conjunto set))
 }
