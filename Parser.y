@@ -23,6 +23,7 @@ module Parser (
 ) where
 
 import Lexer
+import SetC
 import Abstract
 import qualified Data.Map as Map
 }
@@ -83,43 +84,43 @@ import qualified Data.Map as Map
 %%
 
 LProg  : Prog                                      { $1 }
-       | LProg '.' Prog                            { concatTup $1 $3 }
+       | LProg Prog                                { concatTup $1 $2 }
 
-Prog   : Decl                                      { ([$1], []) }
-       | Expr                                      { ([], [$1]) }
+Prog   : Decl '.'                                  { ([$1], []) }
+       | Expr '.'                                  { ([], [$1]) }
 
 Decl  : Lista_id es dominio Dominio                { ($1, $4) }
       | Lista_id tiene dominio Dominio             { ($1, $4) }
-      | Lista_id tiene dominio id                  { ($1, Dominio [Ident (Var (takeStr $4))]) }
+      | Lista_id tiene dominio id                  { ($1, Dominio (SetC.fromList [Ident (Var (takeStr $4))])) }
 
 Dominio : ConjuntoDom                              { Dominio $1 }
-        | universal                                { Dominio [] }
+        | universal                                { Dominio (SetC.emptySet) }
 
-ConjuntoDom : '{' '}'                              { [] }
-            | '{' LAlfa '}'                        { $2 }
-            | '{' ListaConjDom '}'                 { $2 }
-            | '{' ListaArregloDom '}'              { $2 }
+ConjuntoDom : '{' '}'                              { (SetC.emptySet) }
+            | '{' LAlfa '}'                        { (SetC.fromList $2) }
+            | '{' ListaConjDom '}'                 { (SetC.fromList $2) }
+            | '{' ListaArregloDom '}'              { (SetC.fromList $2) }
 
 LAlfa : str                                        { [Elem (takeStr $1)] }
       | LAlfa ',' str                              { $1 ++ [Elem (takeStr $3)] }
 
-ListaConjDom : '{' '}'                             { [] }
-             | '{' LAlfa '}'                       { $2 }
-             | ListaConjDom ',' ListaConjDom       { $1 ++ $3 }
-             | '{' ListaConjDom '}'                { $2 }
+ListaConjDom : '{' '}'                             { [Cto (SetC.emptySet)] }
+             | '{' LAlfa '}'                       { [Cto (SetC.fromList $2)] }
+             | ListaConjDom ',' ListaConjDom       { doCto $1 $3 }
+             | '{' ListaConjDom '}'                { [Cto (SetC.fromList $2)] }
 
-ListaArregloDom : '[' ']'                               { [] }
-                | '[' LAlfa ']'                         { $2 }
-                | ListaArregloDom ',' ListaArregloDom   { $1 ++ $3 }
-                | '[' ListaArregloDom ']'               { $2 }
+ListaArregloDom : '[' ']'                               { [Lista []] }
+                | '[' LAlfa ']'                         { [Lista $2] }
+                | ListaArregloDom ',' ListaArregloDom   { doList $1 $3 }
+                | '[' ListaArregloDom ']'               { [Lista $2] }
 
 Lista_id : id                                      { [Var (takeStr $1)] }
          | Lista_id ',' id                         { $1 ++ [Var (takeStr $3)] }
 
-Conjunto : '{' '}'                                 { Conjunto [] }
-         | '{' Alfa_ran '}'                        { Conjunto $2 }
-         | '{' ListaConj '}'                       { Conjunto $2 }
-         | '{' ListaArreglo '}'                    { Conjunto $2 }
+Conjunto : '{' '}'                                 { Conjunto (SetC.emptySet) }
+         | '{' Alfa_ran '}'                        { Conjunto (SetC.fromList $2) }
+         | '{' ListaConj '}'                       { Conjunto (SetC.fromList $2) }
+         | '{' ListaArreglo '}'                    { Conjunto (SetC.fromList $2) }
 
 Alfa_ran : str                                     { [Elemento (Elem (takeStr $1))] }
          | str '..' str                            { [Rango (head $ takeStr $1) (head $ takeStr $3)] }
@@ -224,6 +225,10 @@ concatTup :: ([a], [b]) -- ^ Primera tupla
           -> ([a], [b]) -- ^ Segunda tupla
           -> ([a], [b]) -- ^ Tupla resultante
 concatTup (x,y) (w,z) = (w++x, y++z)
+
+-- --------------
+doList [(Lista a)] [(Lista b)] = [Lista a, Lista b]
+doCto [(Cto a)] [(Cto b)] = [Cto a, Cto b]
 
 takeStr :: Token -> String
 takeStr (TkStr pos s) = s

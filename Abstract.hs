@@ -13,13 +13,14 @@ module Abstract (
         AlfaRan(..),
         Elemento(..)
 ) where
+import SetC
 
 data AST = Expresion
          | Secuencia AST Expresion
          deriving (Eq,Show)
 
-data Symbol = Conjunto [AlfaRan]
-            | Dominio [Elemento]
+data Symbol = Conjunto (SetC AlfaRan)
+            | Dominio (SetC Elemento)
             deriving (Eq,Show)
 
 data Var = Var String
@@ -80,4 +81,6 @@ data AlfaRan = Rango Char Char
 
 data Elemento = Elem String
               | Ident Var
+              | Cto (SetC Elemento)
+              | Lista [Elemento]
               deriving (Eq,Show)
