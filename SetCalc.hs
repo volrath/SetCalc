@@ -87,12 +87,10 @@ loop mapaActual = do
 
 loop' :: SymTable -> String -> IO()
 loop' mapaActual linea = do
-  tp' <- return $ (chequeoDinamico tp, snd tp)
-  h <- openFile "/dev/null" WriteMode
-  hPrint h tp'
-  hClose h
-  interpreter tp'
-  loop $ fst tp'
+  print $ chequear mapaActual (lexer linea) -- tp
+  (errs, st) <- return $ chequeoDinamico tp
+  interpreter (st, snd tp)
+  loop $ st
       where
         tp = parsearLinea mapaActual linea
 
@@ -104,30 +102,17 @@ printOrKill e = if (e == C.ExitException ExitSuccess)
 
 {-|
   catchOrPrint
-
-  Función que recibe la ejecucion del parser y el lexer sobre un
-  string, trata de imprimir dicha instruccion pero si hubo errores
-  los imprime por la salida de error estandar y permite recuperar
-  el prompt.
 -}
-catchSilently :: TupParser -- ^ La ejecución de las funciones parser y lexer sobre un string.
-              -> SymTable
-              -> IO() -- ^ La impresión del resultado de la ejecución de la función.
-catchSilently tup old = C.catch try (fail old)
-    where 
-      try = do
-        interpreter tup
-        loop $ fst $ tup
-      fail old e = hPrint stderr e >> (loop old)
-
 
 
 parsearLinea :: SymTable
-              -> String
-              -> TupParser
+             -> String
+             -> TupParser
 parsearLinea mapa linea = case chequeoEstructural elTupParser of
-                             Nothing -> ((chequeoDinamico elTupParser), (snd elTupParser))
-                             Just errs -> error $ errs
+                            Nothing -> case chequeoDinamico elTupParser of
+                                         ([], st) -> (st, snd elTupParser)
+                                         (errs@(e:es), st) -> error errs
+                            Just errs -> error $ errs
     where elTupParser = chequear mapa (lexer linea)
 
 

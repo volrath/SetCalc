@@ -64,6 +64,8 @@ module Interpreter (
   interpreter,
   chequeoEstructural,
   chequeoDinamico,
+  chequeoDinamico2,
+  chequeoDinamico2',
 ) where
 
 import System.IO
@@ -98,32 +100,64 @@ printOperations map (Secuencia []) = ""
 printOperations map (Secuencia (e:[])) = printOperations map (Expr e)
 printOperations map (Secuencia (e:es)) = (printOperations map (Expr e)) ++ (printOperations map (Secuencia es))
 
-chequeoDinamico :: TupParser
-                -> SymTable
-chequeoDinamico (mapa, (Secuencia exprs)) = foldl chequeoDinamico' mapa exprs
+chequeoDinamico2 :: TupParser
+                 -> [SymTable]
+chequeoDinamico2 (mapa, Secuencia exprs) = scanl chequeoDinamico2' mapa exprs
 
-chequeoDinamico' :: SymTable
-                 -> Expresion
-                 -> SymTable
-chequeoDinamico' mapa (Union e1 e2) = Map.union (Map.union (chequeoDinamico' mapa e2) (chequeoDinamico' mapa e1)) mapa
-chequeoDinamico' mapa (Interseccion e1 e2) = Map.union (Map.union (chequeoDinamico' mapa e2) (chequeoDinamico' mapa e1)) mapa
-chequeoDinamico' mapa (Diferencia e1 e2) = Map.union (Map.union (chequeoDinamico' mapa e2) (chequeoDinamico' mapa e1)) mapa
-chequeoDinamico' mapa (Cartesiano e1 e2) = Map.union (Map.union (chequeoDinamico' mapa e2) (chequeoDinamico' mapa e1)) mapa
-chequeoDinamico' mapa (Complemento e) = chequeoDinamico' mapa e
-chequeoDinamico' mapa (Partes e) = chequeoDinamico' mapa e
-chequeoDinamico' mapa (Asignacion var e) =  case (SetC.subSet newVal (dominioDe var)) of
-                                             True  -> actualizarConjS (takeStr var) newVal (chequeoDinamico' mapa e)
-                                             False -> showErr var e
+
+chequeoDinamico2' :: SymTable
+                  -> Expresion
+                  -> SymTable
+chequeoDinamico2' mapa (Union e1 e2) = Map.union (Map.union (chequeoDinamico2' mapa e2) (chequeoDinamico2' mapa e1)) mapa
+chequeoDinamico2' mapa (Interseccion e1 e2) = Map.union (Map.union (chequeoDinamico2' mapa e2) (chequeoDinamico2' mapa e1)) mapa
+chequeoDinamico2' mapa (Diferencia e1 e2) = Map.union (Map.union (chequeoDinamico2' mapa e2) (chequeoDinamico2' mapa e1)) mapa
+chequeoDinamico2' mapa (Cartesiano e1 e2) = Map.union (Map.union (chequeoDinamico2' mapa e2) (chequeoDinamico2' mapa e1)) mapa
+chequeoDinamico2' mapa (Complemento e) = chequeoDinamico2' mapa e
+chequeoDinamico2' mapa (Partes e) = chequeoDinamico2' mapa e
+chequeoDinamico2' mapa (Asignacion var e) =  case (SetC.subSet newVal (dominioDe var)) of
+                                             True  -> actualizarConjS (takeStr var) newVal (chequeoDinamico2' mapa e)
+                                             False -> error $ showErr var e
     where
       dominioDe var = dominioSetC mapa $ conjuntoDom $ takeConj (mapa Map.! (takeStr var))
       newVal = calcularExpresion mapa (Asignacion var e)
-      showErr var e = error $ "El resultado de la expresion " ++ (show e) ++ " no es compatible con el dominio de la variable " ++ (takeStr var) ++ " - linea: " ++ (show $ fst $ takePos var) ++ ", columna: " ++ (show $ snd $ takePos var)
+      showErr var e = "El resultado de la expresion " ++ (show e) ++ " no es compatible con el dominio de la variable " ++ (takeStr var) ++ " - linea: " ++ (show $ fst $ takePos var) ++ ", columna: " ++ (show $ snd $ takePos var)
+chequeoDinamico2' mapa _ = mapa
+
+
+
+
+
+
+chequeoDinamico :: TupParser
+                -> (String, SymTable)
+chequeoDinamico (mapa, (Secuencia exprs)) = foldl chequeoDinamico' ([], mapa) exprs
+
+chequeoDinamico' :: (String, SymTable)
+                 -> Expresion
+                 -> (String, SymTable)
+chequeoDinamico' mapa (Union e1 e2) = mezclarMapas (mezclarMapas (chequeoDinamico' mapa e2) (chequeoDinamico' mapa e1)) mapa
+chequeoDinamico' mapa (Interseccion e1 e2) = mezclarMapas (mezclarMapas (chequeoDinamico' mapa e2) (chequeoDinamico' mapa e1)) mapa
+chequeoDinamico' mapa (Diferencia e1 e2) = mezclarMapas (mezclarMapas (chequeoDinamico' mapa e2) (chequeoDinamico' mapa e1)) mapa
+chequeoDinamico' mapa (Cartesiano e1 e2) = mezclarMapas (mezclarMapas (chequeoDinamico' mapa e2) (chequeoDinamico' mapa e1)) mapa
+chequeoDinamico' mapa (Complemento e) = chequeoDinamico' mapa e
+chequeoDinamico' mapa (Partes e) = chequeoDinamico' mapa e
+chequeoDinamico' mapa (Asignacion var e) =  case (SetC.subSet newVal (dominioDe var)) of
+                                             True  -> (fst mapa, actualizarConjS (takeStr var) newVal (snd (chequeoDinamico' mapa e)))
+                                             False -> mezclarMapas mapa (showErr var e, snd mapa)
+    where
+      dominioDe var = dominioSetC (snd mapa) $ conjuntoDom $ takeConj ((snd mapa) Map.! (takeStr var))
+      newVal = calcularExpresion (snd mapa) (Asignacion var e)
+      showErr var e = "El resultado de la expresion " ++ (show e) ++ " no es compatible con el dominio de la variable " ++ (takeStr var) ++ " - linea: " ++ (show $ fst $ takePos var) ++ ", columna: " ++ (show $ snd $ takePos var)
 chequeoDinamico' mapa (Instruccion e) = case e of
                                           Estado -> mapa
                                           Olvidar ids -> mapa --POR AHORA!!!!!!! ACOMODAR!!!!!!!
-                                          OlvidarTodo -> Map.empty
-                                          Fin -> Map.empty
+                                          OlvidarTodo -> ([], Map.empty)
+                                          Fin -> ([], Map.empty)
 chequeoDinamico' mapa _ = mapa
+
+mezclarMapas (errs1, map1) (errs2, map2) = (errs1 ++ errs2, Map.union map1 map2)
+
+
 
 
 calcularExpresion :: SymTable
