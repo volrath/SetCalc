@@ -21,7 +21,7 @@ tokens :-
        $white+                                           ;
        "--".*                                            ;
        -- Literales alfanuméricos
-       [\'\"] $printable* [\'\"]                         { \p s -> TkStr (getShortPosn p) (tail $ init s) }
+       \" $printable* \" | \' $printable* \'             { \p s -> TkStr (getShortPosn p) (tail $ init s) }
        -- Palabras clave
        es                                                { \p s -> TkEs (getShortPosn p) }
        de                                                { \p s -> TkDe (getShortPosn p) }
