@@ -17,6 +17,7 @@ module Main (
 ) where
 
 import System.IO
+import System.Exit
 import System(getArgs)
 import Lexer
 
@@ -45,5 +46,14 @@ main =
            loop
          else do
            -- Se abre el archivo y se analiza
-           contents <- readFile $ head args
+           contents <- readFileOrCatch $ head args
            print $ lexer contents
+
+{-|
+  readFileOrCatch
+-}
+readFileOrCatch :: FilePath -> IO String
+readFileOrCatch fpath = catch (readFile fpath) 
+                        (\e -> 
+                             hPutStr stderr ("Imposible abrir el archivo " ++ fpath ++ "\n")
+                             >> exitFailure)
