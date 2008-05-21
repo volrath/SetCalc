@@ -43,7 +43,7 @@ tokens :-
        \|                                                { \p s -> TkBarra (getShortPosn p) }
        \<\-                                              { \p s -> TkFlecha (getShortPosn p) }
        -- Operadores
-       \:=                                               { \p s -> TkAsignacion (getShortPosn p) } -- Nose si sirve
+       \:=                                               { \p s -> TkAsignacion (getShortPosn p) }
        \+                                                { \p s -> TkUnion (getShortPosn p) }
        \*                                                { \p s -> TkInterseccion (getShortPosn p) }
        \-                                                { \p s -> TkDiferencia (getShortPosn p) }

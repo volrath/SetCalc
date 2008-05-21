@@ -698,9 +698,9 @@ testStringToken = TestList [
   ]
 
 -- Test de errores.
--- Todos los caracteres imprimibles que NO est·n siendo usados
+-- Todos los caracteres imprimibles que NO est√°n siendo usados
 -- deben ocasionar una excepcion controlada en el analizador
--- lexicogr·fico.
+-- lexicogr√°fico.
 
 wrap c  = [c]
 
