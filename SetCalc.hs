@@ -39,21 +39,35 @@ main =
            putStr "Analizador lexicografico:\n"
            let loop = do
                  hSetBuffering stdout NoBuffering
-                 putStr "> "  -- Prompt
-                 line <- getLine
+                 line <- promptAndGet
                  print $ lexer line
                  loop
            loop
          else do
            -- Se abre el archivo y se analiza
-           contents <- readFileOrCatch $ head args
-           print $ lexer contents
+           let iowork = map scanFile args
+           sequence_ iowork
+
+promptAndGet :: IO String
+promptAndGet =
+    putStr "> "
+    >> getLine
+
+scanFile fpath = do
+  content <- readFileOrCatch fpath
+  case content of
+    Right tokenslist -> putStrLn $ show tokenslist
+    Left e -> do
+      hPutStr stderr ("Imposible abrir el archivo " ++ fpath ++ " debido a: ")
+      hPrint stderr e
 
 {-|
   readFileOrCatch
 -}
-readFileOrCatch :: FilePath -> IO String
-readFileOrCatch fpath = catch (readFile fpath) 
-                        (\e -> 
-                             hPutStr stderr ("Imposible abrir el archivo " ++ fpath ++ "\n")
-                             >> exitFailure)
+readFileOrCatch fpath = catch (try fpath) fail
+    where
+      try f = do
+        c <- readFile f
+        let tokens = lexer c
+        return $ Right tokens
+      fail e = return (Left e)

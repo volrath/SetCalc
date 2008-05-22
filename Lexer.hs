@@ -200,6 +200,15 @@ data Token = TkEs (Int, Int)
 lexer :: String -> [Token]
 lexer = alexScanTokens
 
+-- alexCatchingPosn str = go (alexStartPosn, '\n', str)
+--   where go imp@(pos,_,str) =
+--           case alexScan inp 0 of
+--                 AlexEOF     -> []
+--                 AlexError _ -> makeError "\nCaracter inesperado (), linea "
+--                 AlexSkip inp' len     -> go inp'
+--                 AlexToken inp len act -> act pos (take len str) : go inp'
+
+
 getShortPosn :: AlexPosn -> (Int, Int)
 getShortPosn (AlexPn o l c) = (l, c)
 
