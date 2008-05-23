@@ -24,7 +24,7 @@ tokens :-
        $white+                                           ;
        "--".*                                            ;
        -- Literales alfanuméricos
-       \" [$notQuotes\']* \" | \' [$notQuotes\"]* \'             { \p s -> TkStr (getShortPosn p) (tail $ init s) }
+       \" [$notQuotes\']* \" | \' [$notQuotes\"]* \'     { \p s -> TkStr (getShortPosn p) (tail $ init s) }
        -- Palabras clave
        es                                                { \p s -> TkEs (getShortPosn p) }
        de                                                { \p s -> TkDe (getShortPosn p) }
@@ -73,10 +73,16 @@ tokens :-
        not                                               { \p s -> TkNegar (getShortPosn p) }
        -- Identificadores de dominio y variable
        $letra [$letra $digito \_]*                       { \p s -> TkId (getShortPosn p) s }
---       .                                                 { \p s -> showError p s }
+
 {
 {-|
-  Codigo final, se declara el tad y la funcion
+  El tipo de datos @Token@ que contiene los /tokens/
+  devueltos por el analizador lexicográfico generado.
+  
+  Es declarado derivando de @Show@ para poder probar
+  individualmente el analizador lexicográfico.
+  También es declarado derivando de @Eq@ para ser
+  usado por el analizador sintáctico.
 -}
 data Token = TkEs (Int, Int)
            | TkDe (Int, Int)
@@ -120,33 +126,75 @@ data Token = TkEs (Int, Int)
            | TkDigito (Int, Int)
            | TkSimbolo (Int, Int)
            | TkNegar (Int, Int)
-             deriving (Eq, Show)
+           deriving (Eq, Show)
 
-lexer :: String -> [Token]
+{-|
+  lexer
+  
+  Función que se apoya en el analizador
+  lexicográfico y la función @alexCatchingPosn@.
+  recibe un @String@ y produce la lista de
+  /tokens/ encontrados allí.
+-}
+lexer :: String -- ^ Cadena de caractéres a analizar
+      -> [Token] -- ^ Lista de tokens resultante.
 lexer s = catchErrors $ alexCatchingPosn s
 
-alexCatchingPosn :: String -> (String, [Token])
+
+{-|
+  alexCatchingPosn
+  
+  Función que emula el funcionamiento de alexScanTokens
+  para conseguir la lista de /tokens/ encontrados en un
+  @String@ pasado por parámetro y una lista de errores
+  encontrados en el mismo.
+-}
+alexCatchingPosn :: String -- ^ Cadena de caractéres a analizar
+                 -> (String, [Token]) -- ^ Tupla que representa los errores y /tokens/ encontrados
 alexCatchingPosn str = go (alexStartPos, '\n', str)
-  where go inp@(pos,_,str) =
+  where go inp@(pos,c,str) =
           case alexScan inp 0 of
-                AlexEOF        -> ("",[])
-                AlexError inp' -> do
-                   case alexGetChar inp' of
-                     Just newinp -> concatTup (go (snd newinp)) ("\nCaracter inesperado (" ++ (take 1 str) ++ "), linea " ++ show (fst (getShortPosn pos)) ++ ", columna " ++ (show (snd (getShortPosn pos))) ++ ".\n", [])
+                AlexEOF     -> ("",[])
+                AlexError inp' -> concatTup (go (createInput inp')) ("\nCaracter inesperado (" ++ (head str) : "), linea " ++ show (fst (getShortPosn pos)) ++ ", columna " ++ (show (snd (getShortPosn pos))) ++ ".\n", [])
                 AlexSkip inp' _        -> concatTup (go inp') ("",[])
                 AlexToken inp' len act -> concatTup ("", [(act pos (take len str))]) (go inp')
 
-concatTup :: (String, [Token]) -> (String, [Token]) -> (String, [Token])
-concatTup (x,y) (w,z) = (x++w, y++z)
+createInput :: AlexInput -> AlexInput
+createInput ((AlexPn o l c), _, str) = ((AlexPn o l (c+1)), (head str), (tailOrNothing str))
+    where tailOrNothing s = do
+            if (null s)
+              then ""
+              else tail s
 
-catchErrors :: (String, [Token]) -> [Token]
+{-|
+  concatTup
+  
+  Función que concatena listas encapsuladas en tuplas.
+-}
+concatTup :: (String, [Token]) -- ^ Primera tupla
+          -> (String, [Token]) -- ^ Segunda tupla
+          -> (String, [Token]) -- ^ Tupla resultante
+concatTup (x,y) (w,z) = (w++x, y++z)
+
+{-|
+  catchErrors
+  
+  Función que consigue errores en las tuplas devueltas por
+  @alexCatchingPosn@.
+-}
+catchErrors :: (String, [Token]) -- ^ Tupla de errores y tokens
+            -> [Token] -- ^ Lista de /tokens/ resultante
 catchErrors ("", x) = x
 catchErrors (e, _) = error e
 
-getShortPosn :: AlexPosn -> (Int, Int)
+{-|
+  getShortPosn
+  
+  Función que dado un @AlexInput@, devuelve una tupla con
+  la línea y columna que éste almacena.
+-}
+getShortPosn :: AlexPosn -- ^ AlexInput
+             -> (Int, Int) -- ^ Tupla de linea y columna
 getShortPosn (AlexPn o l c) = (l, c)
 
--- showErrors :: String -> IO ()
--- showErrors (x:[]) = hPutStr stderr x
--- showErrors (x:xs) = hPutStr stderr x >> showErrors xs
 }
