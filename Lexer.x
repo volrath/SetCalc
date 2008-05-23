@@ -8,6 +8,8 @@ module Lexer (
               -- * Funcion a exportar
               lexer
 ) where
+import System.IO
+import System.Exit
 }
 
 %wrapper "posn" -- Intentar pasar a monad
@@ -15,13 +17,14 @@ module Lexer (
 -- Macros
 $letra = [a-z A-Z]
 $digito = [0-9]
+$notQuotes = ~[\'\"\n]
 
 -- rules
 tokens :-
        $white+                                           ;
        "--".*                                            ;
        -- Literales alfanuméricos
-       \" $printable* \" | \' $printable* \'             { \p s -> TkStr (getShortPosn p) (tail $ init s) }
+       \" [$notQuotes\']* \" | \' [$notQuotes\"]* \'             { \p s -> TkStr (getShortPosn p) (tail $ init s) }
        -- Palabras clave
        es                                                { \p s -> TkEs (getShortPosn p) }
        de                                                { \p s -> TkDe (getShortPosn p) }
@@ -70,7 +73,7 @@ tokens :-
        not                                               { \p s -> TkNegar (getShortPosn p) }
        -- Identificadores de dominio y variable
        $letra [$letra $digito \_]*                       { \p s -> TkId (getShortPosn p) s }
-       .                                                 { \p s -> showError p s }
+--       .                                                 { \p s -> showError p s }
 {
 {-|
   Codigo final, se declara el tad y la funcion
@@ -119,21 +122,31 @@ data Token = TkEs (Int, Int)
            | TkNegar (Int, Int)
              deriving (Eq, Show)
 
-lexer :: String -> [Token]
-lexer = alexScanTokens
+lexer :: String -> IO ()
+lexer s = catchErrors $ alexCatchingPosn s
 
--- alexCatchingPosn str = go (alexStartPosn, '\n', str)
---   where go imp@(pos,_,str) =
---           case alexScan inp 0 of
---                 AlexEOF     -> []
---                 AlexError _ -> makeError "\nCaracter inesperado (), linea "
---                 AlexSkip inp' len     -> go inp'
---                 AlexToken inp len act -> act pos (take len str) : go inp'
+alexCatchingPosn :: String -> ([String], [Token])
+alexCatchingPosn str = go (alexStartPos, '\n', str)
+  where go inp@(pos,_,str) =
+          case alexScan inp 0 of
+                AlexEOF        -> ([],[])
+                AlexError inp' -> do
+                   case alexGetChar inp' of
+                     Just newinp -> concatTup (go (snd newinp)) ([error ("\nCaracter inesperado (" ++ (take 1 str) ++ "), linea " ++ show (fst (getShortPosn pos)) ++ ", columna " ++ (show (snd (getShortPosn pos))) ++ ".\n")], [])
+                AlexSkip inp' _        -> concatTup (go inp') ([],[])
+                AlexToken inp' len act -> concatTup ([], [(act pos (take len str))]) (go inp')
 
+concatTup :: ([String], [Token]) -> ([String], [Token]) -> ([String], [Token])
+concatTup (x,y) (w,z) = (x++w, y++z)
+
+catchErrors :: ([String], [Token]) -> IO ()
+catchErrors ([], x) = putStrLn $ show x
+catchErrors (e, _) = showErrors e
 
 getShortPosn :: AlexPosn -> (Int, Int)
 getShortPosn (AlexPn o l c) = (l, c)
 
-showError :: AlexPosn -> String -> Token
-showError (AlexPn _ l c) car = error("\nCaracter inesperado (" ++ car ++ "), linea " ++ (show l) ++ ", columna " ++ (show c) ++ ".\n")
+showErrors :: [String] -> IO ()
+showErrors (x:[]) = hPutStr stderr x
+showErrors (x:xs) = hPutStr stderr x >> showErrors xs
 }
