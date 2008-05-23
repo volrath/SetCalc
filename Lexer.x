@@ -12,7 +12,7 @@ import System.IO
 import System.Exit
 }
 
-%wrapper "posn" -- Intentar pasar a monad
+%wrapper "posn"
 
 -- Macros
 $letra = [a-z A-Z]
@@ -21,58 +21,57 @@ $notQuotes = ~[\'\"\n]
 
 -- rules
 tokens :-
-       $white+                                           ;
-       "--".*                                            ;
-       -- Literales alfanuméricos
-       \" [$notQuotes\']* \" | \' [$notQuotes\"]* \'     { \p s -> TkStr (getShortPosn p) (tail $ init s) }
+       $white+                                           ; -- ^ Espacios en blanco
+       "--".*                                            ; -- ^ Comentarios
+       \" [$notQuotes\']* \" | \' [$notQuotes\"]* \'     { \p s -> TkStr (getShortPosn p) (tail $ init s) } -- ^ Literales alfanuméricos
        -- Palabras clave
-       es                                                { \p s -> TkEs (getShortPosn p) }
-       de                                                { \p s -> TkDe (getShortPosn p) }
-       tiene                                             { \p s -> TkTiene (getShortPosn p) }
-       dominio                                           { \p s -> TkDominio (getShortPosn p) }
-       conjunto                                          { \p s -> TkConjunto (getShortPosn p) }
-       universo                                          { \p s -> TkUniverso (getShortPosn p) }
-       universal                                         { \p s -> TkUniversal (getShortPosn p) }
+       es                                                { \p s -> TkEs (getShortPosn p) } -- ^ Palabra reservada @es@
+       de                                                { \p s -> TkDe (getShortPosn p) } -- ^ Palabra reservada @de@
+       tiene                                             { \p s -> TkTiene (getShortPosn p) } -- ^ Palabra reservada @tiene@
+       dominio                                           { \p s -> TkDominio (getShortPosn p) } -- ^ Palabra reservada @dominio@
+       conjunto                                          { \p s -> TkConjunto (getShortPosn p) } -- ^ Palabra reservada @conjunto@
+       universo                                          { \p s -> TkUniverso (getShortPosn p) } -- ^ Palabra reservada @universo@
+       universal                                         { \p s -> TkUniversal (getShortPosn p) } -- ^ Palabra reservada @universal@
        -- Simbolos y separadores
-       \{                                                { \p s -> TkALlave (getShortPosn p) }
-       \}                                                { \p s -> TkCLlave (getShortPosn p) }
-       \[                                                { \p s -> TkACorchete (getShortPosn p) }
-       \]                                                { \p s -> TkCCorchete (getShortPosn p) }
-       \(                                                { \p s -> TkAParentesis (getShortPosn p) }
-       \)                                                { \p s -> TkCParentesis (getShortPosn p) }
-       \,                                                { \p s -> TkComa (getShortPosn p) }
-       \.                                                { \p s -> TkPunto (getShortPosn p) }
-       \.\.                                              { \p s -> TkPuntoPunto (getShortPosn p) }
-       \|                                                { \p s -> TkBarra (getShortPosn p) }
-       \<\-                                              { \p s -> TkFlecha (getShortPosn p) }
+       \{                                                { \p s -> TkALlave (getShortPosn p) } -- ^ Llave abriendo (@{@).
+       \}                                                { \p s -> TkCLlave (getShortPosn p) } -- ^ Llave cerrando (@}@).
+       \[                                                { \p s -> TkACorchete (getShortPosn p) } -- ^ Corchete abriendo (@[@).
+       \]                                                { \p s -> TkCCorchete (getShortPosn p) } -- ^ Corchete cerrando (@]@).
+       \(                                                { \p s -> TkAParentesis (getShortPosn p) } -- ^ Paréntesis abriendo (@(@).
+       \)                                                { \p s -> TkCParentesis (getShortPosn p) } -- ^ Paréntesis cerrando (@)@).
+       \,                                                { \p s -> TkComa (getShortPosn p) } -- ^ Símbolo coma (@,@).
+       \.                                                { \p s -> TkPunto (getShortPosn p) } -- ^ Símbolo punto (@.@).
+       \.\.                                              { \p s -> TkPuntoPunto (getShortPosn p) } -- ^ Símbolo rango (@..@).
+       \|                                                { \p s -> TkBarra (getShortPosn p) } -- ^ Símbolo Barra (@|@).
+       \<\-                                              { \p s -> TkFlecha (getShortPosn p) } -- ^ Símbolo Flecha (@->@).
        -- Operadores
-       \:=                                               { \p s -> TkAsignacion (getShortPosn p) }
-       \+                                                { \p s -> TkUnion (getShortPosn p) }
-       \*                                                { \p s -> TkInterseccion (getShortPosn p) }
-       \-                                                { \p s -> TkDiferencia (getShortPosn p) }
-       \~                                                { \p s -> TkComplemento (getShortPosn p) }
-       \%                                                { \p s -> TkCartesiano (getShortPosn p) }
-       \!                                                { \p s -> TkPartes (getShortPosn p) }
+       :=                                                { \p s -> TkAsignacion (getShortPosn p) } -- ^ Operador de asignación (@:=@).
+       \+                                                { \p s -> TkUnion (getShortPosn p) } -- ^ Operador de unión (@+@).
+       \*                                                { \p s -> TkInterseccion (getShortPosn p) } -- ^ Operador de intersección (@*@).
+       \-                                                { \p s -> TkDiferencia (getShortPosn p) } -- ^ Operador de diferencia (@-@).
+       \~                                                { \p s -> TkComplemento (getShortPosn p) } -- ^ Operador de complemento (@~@).
+       \%                                                { \p s -> TkCartesiano (getShortPosn p) } -- ^ Operador de producto cartesiano (@%@).
+       \!                                                { \p s -> TkPartes (getShortPosn p) } -- ^ Operador de conjunto de partes (@!@).
        -- Funciones predefinidas
-       miembro                                           { \p s -> TkMiembro (getShortPosn p) }
-       vacio                                             { \p s -> TkVacio (getShortPosn p) }
-       subconjunto                                       { \p s -> TkSubconjunto (getShortPosn p) }
+       miembro                                           { \p s -> TkMiembro (getShortPosn p) } -- ^ Palabra reservada @miembro@
+       vacio                                             { \p s -> TkVacio (getShortPosn p) } -- ^ Palabra reservada @vacio@
+       subconjunto                                       { \p s -> TkSubconjunto (getShortPosn p) } -- ^ Palabra reservada @subconjunto@
        -- Instrucciones especiales
-       estado                                            { \p s -> TkEstado (getShortPosn p) }
-       olvidar                                           { \p s -> TkOlvidar (getShortPosn p) }
-       todo                                              { \p s -> TkTodo (getShortPosn p) }
-       fin                                               { \p s -> TkFin (getShortPosn p) }
+       estado                                            { \p s -> TkEstado (getShortPosn p) } -- ^ Palabra reservada @estado@
+       olvidar                                           { \p s -> TkOlvidar (getShortPosn p) } -- ^ Palabra reservada @olvidar@
+       todo                                              { \p s -> TkTodo (getShortPosn p) } -- ^ Palabra reservada @todo@
+       fin                                               { \p s -> TkFin (getShortPosn p) } -- ^ Palabra reservada @fin@
        -- Filtros para conjunto
-       ==                                                { \p s -> TkIgual (getShortPosn p) }
-       \<                                                { \p s -> TkMenor (getShortPosn p) }
-       \>                                                { \p s -> TkMayor (getShortPosn p) }
-       mayuscula                                         { \p s -> TkMayuscula (getShortPosn p) }
-       letra                                             { \p s -> TkLetra (getShortPosn p) }
-       digito                                            { \p s -> TkDigito (getShortPosn p) }
-       simbolo                                           { \p s -> TkSimbolo (getShortPosn p) }
-       not                                               { \p s -> TkNegar (getShortPosn p) }
+       ==                                                { \p s -> TkIgual (getShortPosn p) } -- ^ Operador de igualdad (@==@).
+       \<                                                { \p s -> TkMenor (getShortPosn p) } -- ^ Operador de menor (@<@).
+       \>                                                { \p s -> TkMayor (getShortPosn p) } -- ^ Operador de mayor (@>@).
+       mayuscula                                         { \p s -> TkMayuscula (getShortPosn p) } -- ^ Operador mayúscula (@mayuscula@).
+       letra                                             { \p s -> TkLetra (getShortPosn p) } -- ^ Operador letra (@letra@).
+       digito                                            { \p s -> TkDigito (getShortPosn p) } -- ^ Operador digito (@digito@).
+       simbolo                                           { \p s -> TkSimbolo (getShortPosn p) } -- ^ Operador símbolo (@simbolo@).
+       not                                               { \p s -> TkNegar (getShortPosn p) } -- ^ Operador de negación (@not@).
        -- Identificadores de dominio y variable
-       $letra [$letra $digito \_]*                       { \p s -> TkId (getShortPosn p) s }
+       $letra [$letra $digito \_]*                       { \p s -> TkId (getShortPosn p) s } -- ^ Identificadores de dominio y variable
 
 {
 {-|

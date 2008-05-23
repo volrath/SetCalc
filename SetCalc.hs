@@ -13,8 +13,7 @@
  -}
 module Main (
 -- * Función Principal.
-  main,
-  promptAndGet
+  main
 ) where
 
 import System.IO

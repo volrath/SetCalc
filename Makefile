@@ -16,5 +16,5 @@ doc:	$(SOURCES) $(MODULES)
 	test -d $(DOCDIR) || mkdir $(DOCDIR)
 	rm -rf $(DOCDIR)/*
 	ghc -cpp -E -optP-P -D__HADDOCK__ Lexer.hs -o Lex.hs
-	haddock --html --odir=$(DOCDIR) $(SOURCES) Lex.hs
+	haddock --html --ignore-all-exports --odir=$(DOCDIR) $(SOURCES) Lex.hs
 	rm -f Lex.hs
